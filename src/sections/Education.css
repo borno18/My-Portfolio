@@ -1,0 +1,134 @@
+.education {
+    background: var(--color-black);
+    padding: 100px 0;
+}
+
+.timeline {
+    position: relative;
+    max-width: 900px;
+    margin: 0 auto;
+    margin-top: 4rem;
+}
+
+.timeline-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: rgba(255, 152, 0, 0.2);
+    transform: translateX(-50%);
+}
+
+.timeline-item {
+    width: 50%;
+    position: relative;
+    margin-bottom: 3rem;
+}
+
+.timeline-item.left {
+    left: 0;
+    padding-right: 3rem;
+    text-align: right;
+}
+
+.timeline-item.right {
+    left: 50%;
+    padding-left: 3rem;
+}
+
+.timeline-dot {
+    position: absolute;
+    top: 0;
+    width: 40px;
+    height: 40px;
+    background: var(--color-black);
+    border: 2px solid var(--color-orange);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-orange);
+    z-index: 2;
+    box-shadow: 0 0 15px var(--color-glow);
+}
+
+.left .timeline-dot {
+    right: -20px;
+}
+
+.right .timeline-dot {
+    left: -20px;
+}
+
+.timeline-content {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 152, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.timeline-content:hover {
+    border-color: var(--color-orange);
+    background: rgba(255, 152, 0, 0.05);
+}
+
+.edu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    gap: 1rem;
+}
+
+.left .edu-header {
+    flex-direction: row-reverse;
+}
+
+.edu-header h3 {
+    color: var(--color-orange);
+    font-size: 1.2rem;
+}
+
+.edu-date {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.edu-inst {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: #AAA;
+}
+
+.timeline-content p {
+    font-size: 0.95rem;
+    color: #888;
+    line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+    .timeline-line {
+        left: 20px;
+    }
+
+    .timeline-item {
+        width: 100%;
+        left: 0 !important;
+        padding-left: 3.5rem !important;
+        padding-right: 0 !important;
+        text-align: left !important;
+    }
+
+    .timeline-dot {
+        left: 0 !important;
+    }
+
+    .left .edu-header {
+        flex-direction: row;
+    }
+}

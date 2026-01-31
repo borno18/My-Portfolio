@@ -1,0 +1,29 @@
+:root {
+  --color-orange: #FF9800;
+  --color-black: #0A0A0A;
+  --color-gray: #1A1A1A;
+  --color-white: #FFFFFF;
+  --color-chakra: #2196F3;
+  --color-glow: rgba(255, 152, 0, 0.3);
+  
+  --font-main: 'Outfit', sans-serif;
+  --font-accent: 'Playfair Display', serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--color-black);
+  color: var(--color-white);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-accent);
+}

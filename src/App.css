@@ -1,0 +1,27 @@
+.portfolio-root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+footer {
+    padding: 3rem 0;
+    text-align: center;
+    border-top: 1px solid rgba(255, 152, 0, 0.1);
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+section {
+    padding: 100px 0;
+}
