@@ -4,11 +4,11 @@ import { Maximize2 } from 'lucide-react';
 import './Photography.css';
 
 // Import images
-import img1 from '../assets/img_2287.jpg';
-import img2 from '../assets/img_2362.jpg';
-import img3 from '../assets/img_5326.jpg';
-import img4 from '../assets/img_6881.jpg';
-import img5 from '../assets/img_6957.jpg';
+import img1 from '../assets/img_2287.JPG';
+import img2 from '../assets/img_2362.JPG';
+import img3 from '../assets/img_5326.JPG';
+import img4 from '../assets/img_6881.JPG';
+import img5 from '../assets/img_6957.JPG';
 
 const Photography = () => {
     const images = [
