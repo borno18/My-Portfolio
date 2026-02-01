@@ -18,18 +18,18 @@
     background: #222;
 }
 
-.photo-placeholder {
+.photo-card-inner {
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.5s ease;
+    position: relative;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.photo-icon {
-    opacity: 0.1;
-    color: var(--color-orange);
+.photo-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }
 
 .photo-overlay {
@@ -60,6 +60,6 @@
     opacity: 1;
 }
 
-.photo-card:hover .photo-placeholder {
+.photo-card:hover .photo-card-inner {
     transform: scale(1.1);
 }

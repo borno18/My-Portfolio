@@ -1,16 +1,22 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Camera, Maximize2 } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 import './Photography.css';
+
+// Import images
+import img1 from '../assets/IMG_2287.jpg';
+import img2 from '../assets/IMG_2362.jpg';
+import img3 from '../assets/IMG_5326.jpg';
+import img4 from '../assets/IMG_6881.jpg';
+import img5 from '../assets/IMG_6957.jpg';
 
 const Photography = () => {
     const images = [
-        { id: 1, title: 'Hidden Leaf Sunrise', category: 'Nature' },
-        { id: 2, title: 'Street Level', category: 'Urban' },
-        { id: 3, title: 'Training Grounds', category: 'Action' },
-        { id: 4, title: 'Scroll Library', category: 'Abstract' },
-        { id: 5, title: 'Neon Night', category: 'Urban' },
-        { id: 6, title: 'Forest Path', category: 'Nature' },
+        { id: 1, src: img1, title: 'Durga Puja Sylhet', category: 'Nature' },
+        { id: 2, src: img2, title: 'Devi Durga', category: 'Urban' },
+        { id: 3, src: img3, title: 'IICT Sust', category: 'Action' },
+        { id: 4, src: img4, title: 'My Cooking', category: 'Abstract' },
+        { id: 5, src: img5, title: 'A dream afternoon', category: 'Urban' },
     ];
 
     return (
@@ -36,8 +42,8 @@ const Photography = () => {
                             viewport={{ once: true }}
                             transition={{ delay: idx * 0.1 }}
                         >
-                            <div className="photo-placeholder">
-                                <Camera size={32} className="photo-icon" />
+                            <div className="photo-card-inner">
+                                <img src={img.src} alt={img.title} className="photo-image" />
                                 <div className="photo-overlay">
                                     <Maximize2 size={24} />
                                     <span>{img.title}</span>

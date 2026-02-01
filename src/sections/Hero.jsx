@@ -33,7 +33,7 @@ const Hero = () => {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.7, duration: 0.6 }}
                     >
-                        Mastering the Art of <span className="highlight">Modern Web</span>
+                        Mastering the Art of <span className="highlight">Software Engineering</span>
                     </motion.h1>
                     <motion.p
                         className="hero-description"
@@ -41,8 +41,7 @@ const Hero = () => {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 1 }}
                     >
-                        I decompose complex architectures into high-performance experiences.
-                        Blending ninja-fast development with elegant, intuitive design.
+                        A chunin waiting to become a jonin by completing some S rank missions.
                     </motion.p>
 
                     <motion.div
