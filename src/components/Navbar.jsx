@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Ghost } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import './Navbar.css';
 
 const Navbar = () => {
@@ -23,15 +23,15 @@ const Navbar = () => {
     ];
 
     return (
-        <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
+        <nav className={`navbar ${scrolled ? 'scrolled' : ''} transition-all duration-300 ease-in-out`}>
             <div className="nav-container">
                 <motion.div
-                    className="nav-logo"
+                    className="nav-logo transition-all duration-300 ease-in-out hover:opacity-85"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.5 }}
                 >
-                    <span className="logo-symbol">渦</span>
+                    <span className="logo-symbol transition-all duration-300 ease-in-out">渦</span>
                     <span className="logo-text">Uzumaki</span>
                 </motion.div>
 
@@ -44,13 +44,21 @@ const Navbar = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 + 0.5 }}
                         >
-                            <a href={link.href}>{link.name}</a>
+                            <a 
+                                href={link.href}
+                                className="transition-all duration-300 ease-in-out hover:text-orange"
+                            >
+                                {link.name}
+                            </a>
                         </motion.li>
                     ))}
                 </ul>
 
                 {/* Mobile menu button */}
-                <div className="mobile-toggle" onClick={() => setIsOpen(!isOpen)}>
+                <div 
+                    className="mobile-toggle transition-all duration-300 ease-in-out hover:text-orange" 
+                    onClick={() => setIsOpen(!isOpen)}
+                >
                     {isOpen ? <X size={28} /> : <Menu size={28} />}
                 </div>
             </div>
@@ -67,7 +75,12 @@ const Navbar = () => {
                         <ul>
                             {navLinks.map((link) => (
                                 <li key={link.name} onClick={() => setIsOpen(false)}>
-                                    <a href={link.href}>{link.name}</a>
+                                    <a 
+                                        href={link.href}
+                                        className="transition-all duration-300 ease-in-out hover:text-orange"
+                                    >
+                                        {link.name}
+                                    </a>
                                 </li>
                             ))}
                         </ul>

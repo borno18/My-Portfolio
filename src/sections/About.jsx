@@ -112,7 +112,12 @@ const About = () => {
                             <h4>{skillGroup.name}</h4>
                             <div className="skill-tags">
                                 {skillGroup.items.map(skill => (
-                                    <span key={skill} className="skill-tag">{skill}</span>
+                                    <span 
+                                        key={skill} 
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold font-main bg-zinc-900 border border-solid border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900/80 transition-all duration-300 ease-in-out cursor-default shadow-sm"
+                                    >
+                                        {skill}
+                                    </span>
                                 ))}
                             </div>
                         </motion.div>

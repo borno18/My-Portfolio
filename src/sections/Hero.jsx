@@ -50,11 +50,11 @@ const Hero = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 1.2 }}
                     >
-                        <a href="#projects" className="btn btn-primary">
+                        <a href="#projects" className="btn btn-primary transition-all duration-300 ease-in-out">
                             View Missions <ChevronRight size={18} />
                             <span className="btn-glow"></span>
                         </a>
-                        <a href="#contact" className="btn btn-secondary">
+                        <a href="#contact" className="btn btn-secondary transition-all duration-300 ease-in-out">
                             Summon Me
                         </a>
                     </motion.div>

@@ -20,33 +20,41 @@ const Photography = () => {
     ];
 
     return (
-        <section id="photography" className="photography">
-            <div className="container">
+        <section id="photography" className="photography py-20 bg-[#0A0A0A]">
+            <div className="container max-w-6xl mx-auto px-4">
                 <motion.div
-                    className="section-header"
+                    className="section-header text-center mb-16"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="section-title">Sharingan Views</h2>
-                    <div className="title-underline"></div>
+                    <h2 className="section-title text-3xl sm:text-4xl font-bold font-accent mb-2">Sharingan Views</h2>
+                    <div className="title-underline mx-auto mt-4 w-12 h-1 bg-orange"></div>
                 </motion.div>
 
-                <div className="photography-grid">
+                {/* Grid layout with explicit overflow-hidden and gap configurations */}
+                <div className="photography-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                     {images.map((img, idx) => (
                         <motion.div
                             key={img.id}
-                            className="photo-card"
-                            initial={{ opacity: 0, scale: 0.9 }}
+                            className="photo-card relative aspect-square overflow-hidden rounded-xl bg-zinc-900 border border-solid border-zinc-800 transition-all duration-300 ease-in-out hover:border-orange/30 shadow-md cursor-pointer group"
+                            initial={{ opacity: 0, scale: 0.95 }}
                             whileInView={{ opacity: 1, scale: 1 }}
                             viewport={{ once: true }}
-                            transition={{ delay: idx * 0.1 }}
+                            transition={{ delay: idx * 0.1, duration: 0.4 }}
                         >
-                            <div className="photo-card-inner">
-                                <img src={img.src} alt={img.title} className="photo-image" />
-                                <div className="photo-overlay">
-                                    <Maximize2 size={24} />
-                                    <span>{img.title}</span>
+                            <div className="w-full h-full relative overflow-hidden">
+                                {/* Smooth 500ms transform transitions on hover scale */}
+                                <img 
+                                    src={img.src} 
+                                    alt={img.title} 
+                                    className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105" 
+                                />
+                                
+                                {/* Overlay with smooth opacity transition */}
+                                <div className="photo-overlay absolute inset-0 bg-orange/80 flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out p-4 text-center text-black font-main">
+                                    <Maximize2 size={24} className="stroke-[2.5]" />
+                                    <span className="font-bold text-sm tracking-wide">{img.title}</span>
                                 </div>
                             </div>
                         </motion.div>

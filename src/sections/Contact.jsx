@@ -52,17 +52,17 @@ const Contact = () => {
                         <p>Send me a message and let's build something epic together.</p>
 
                         <div className="contact-links">
-                            <a href="mailto:joydipmajumdarborno@gmail.com" className="contact-item">
+                            <a href="mailto:joydipmajumdarborno@gmail.com" className="contact-item transition-all duration-300 ease-in-out hover:text-orange">
                                 <Mail size={24} />
                                 <span>joydipmajumdarborno@gmail.com</span>
                             </a>
 
                             <div className="social-links">
-                                <a href="https://github.com/borno18" target="_next">
+                                <a href="https://github.com/borno18" target="_next" className="transition-all duration-300 ease-in-out hover:text-orange hover:scale-105 inline-block">
                                     <Github size={28} />
                                 </a>
 
-                                <a href="https://www.linkedin.com/in/joydip-majumdar/" target="_next">
+                                <a href="https://www.linkedin.com/in/joydip-majumdar/" target="_next" className="transition-all duration-300 ease-in-out hover:text-orange hover:scale-105 inline-block">
                                     <Linkedin size={28} />
                                 </a>
                             </div>
@@ -79,12 +79,13 @@ const Contact = () => {
                         viewport={{ once: true }}
                     >
 
-                        <div className="form-group">
+                         <div className="form-group">
                             <input
                                 name="user_name"
                                 type="text"
                                 placeholder="Your Name"
                                 required
+                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20"
                             />
                         </div>
 
@@ -94,6 +95,7 @@ const Contact = () => {
                                 type="email"
                                 placeholder="Email Address"
                                 required
+                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20"
                             />
                         </div>
 
@@ -103,10 +105,11 @@ const Contact = () => {
                                 placeholder="Your Message"
                                 rows="5"
                                 required
+                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20"
                             ></textarea>
                         </div>
 
-                        <button type="submit" className="btn btn-primary form-submit">
+                        <button type="submit" className="btn btn-primary form-submit transition-all duration-300 ease-in-out hover:scale-[1.02]">
                             Send Scroll ✉ <Send size={18} />
                         </button>
 
