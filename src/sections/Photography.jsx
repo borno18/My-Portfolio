@@ -1,137 +1,231 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Maximize2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Maximize2, X, ChevronLeft, ChevronRight, Camera, MapPin } from 'lucide-react';
 import './Photography.css';
+import { photos } from '../assets/photos.js';
 
-// Import images
-import img1 from '../assets/img_2287.jpg';
-import img2 from '../assets/img_2362.jpg';
-import img3 from '../assets/img_5326.jpg';
-import img4 from '../assets/img_6881.jpg';
-import img5 from '../assets/img_6957.jpg';
+// Category filter list derived from photo data
+const ALL_CATEGORIES = ['All', ...new Set(photos.map(p => p.category))];
+
+// Fujifilm film simulation colour label per category
+const CATEGORY_COLORS = {
+    Festival:     'text-rose-400 border-rose-500/30 bg-rose-900/20',
+    Street:       'text-cyan-400 border-cyan-500/30 bg-cyan-900/20',
+    Nature:       'text-emerald-400 border-emerald-500/30 bg-emerald-900/20',
+    Food:         'text-amber-400 border-amber-500/30 bg-amber-900/20',
+    Architecture: 'text-violet-400 border-violet-500/30 bg-violet-900/20',
+    Portrait:     'text-pink-400 border-pink-500/30 bg-pink-900/20',
+};
+const getCatColor = (cat) => CATEGORY_COLORS[cat] || 'text-orange border-orange/30 bg-orange/10';
 
 const Photography = () => {
-    const [activePhotoIndex, setActivePhotoIndex] = useState(null);
+    const [activeIndex, setActiveIndex] = useState(null);
+    const [activeCategory, setActiveCategory] = useState('All');
 
-    const images = [
-        { id: 1, src: img1, title: 'Durga Puja Sylhet', category: 'Nature' },
-        { id: 2, src: img2, title: 'Devi Durga', category: 'Urban' },
-        { id: 3, src: img3, title: 'IICT Sust', category: 'Action' },
-        { id: 4, src: img4, title: 'My Cooking', category: 'Abstract' },
-        { id: 5, src: img5, title: 'A dream afternoon', category: 'Urban' },
-    ];
+    const filtered = activeCategory === 'All'
+        ? photos
+        : photos.filter(p => p.category === activeCategory);
+
+    const openLightbox = useCallback((globalIdx) => setActiveIndex(globalIdx), []);
+    const closeLightbox = useCallback(() => setActiveIndex(null), []);
+
+    const prev = useCallback(() => {
+        setActiveIndex(i => (i === 0 ? photos.length - 1 : i - 1));
+    }, []);
+
+    const next = useCallback(() => {
+        setActiveIndex(i => (i === photos.length - 1 ? 0 : i + 1));
+    }, []);
+
+    // Keyboard navigation for lightbox
+    React.useEffect(() => {
+        if (activeIndex === null) return;
+        const onKey = (e) => {
+            if (e.key === 'ArrowLeft')  prev();
+            if (e.key === 'ArrowRight') next();
+            if (e.key === 'Escape')     closeLightbox();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [activeIndex, prev, next, closeLightbox]);
 
     return (
         <section id="photography" className="photography bg-[#0A0A0A]">
             <div className="container max-w-6xl mx-auto px-4">
+
+                {/* ── Section Header ──────────────────────────────────────── */}
                 <motion.div
-                    className="section-header text-center mb-16"
+                    className="section-header text-center mb-10"
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                 >
-                    <h2 className="section-title text-3xl sm:text-4xl font-bold font-accent mb-2">Sharingan Views</h2>
+                    <h2 className="section-title text-3xl sm:text-4xl font-bold font-accent mb-2">
+                        Sharingan Views
+                    </h2>
                     <div className="title-underline mx-auto mt-4 w-12 h-1 bg-orange"></div>
+
+                    {/* Fujifilm badge */}
+                    <div className="flex items-center justify-center gap-2 mt-5">
+                        <Camera size={14} className="text-neutral-500" />
+                        <span className="text-[11px] font-bold uppercase tracking-[3px] text-neutral-500">
+                            Shot on FUJIFILM
+                        </span>
+                    </div>
                 </motion.div>
 
-                {/* Grid layout with explicit overflow-hidden and gap configurations */}
+                {/* ── Category Filter ─────────────────────────────────────── */}
+                {ALL_CATEGORIES.length > 2 && (
+                    <div className="flex flex-wrap justify-center gap-2 mb-8">
+                        {ALL_CATEGORIES.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setActiveCategory(cat)}
+                                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border border-solid transition-all duration-250 ease-in-out cursor-pointer ${
+                                    activeCategory === cat
+                                        ? 'bg-orange text-black border-orange'
+                                        : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:border-orange/40 hover:text-zinc-200'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* ── Photo Grid ──────────────────────────────────────────── */}
                 <div className="photography-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {images.map((img, idx) => (
-                        <motion.div
-                            key={img.id}
-                            className="photo-card relative aspect-square overflow-hidden rounded-xl bg-zinc-900 border border-solid border-zinc-800 transition-all duration-300 ease-in-out hover:border-orange/30 shadow-md cursor-pointer group"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            whileInView={{ opacity: 1, scale: 1 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: idx * 0.1, duration: 0.4 }}
-                            onClick={() => setActivePhotoIndex(idx)}
-                        >
-                            <div className="w-full h-full relative overflow-hidden">
-                                {/* Smooth 500ms transform transitions on hover scale */}
-                                <img 
-                                    src={img.src} 
-                                    alt={img.title} 
-                                    className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105" 
-                                />
-                                
-                                {/* Overlay with smooth opacity transition */}
-                                <div className="photo-overlay absolute inset-0 bg-orange/80 flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out p-4 text-center text-black font-main">
-                                    <Maximize2 size={24} className="stroke-[2.5]" />
-                                    <span className="font-bold text-sm tracking-wide">{img.title}</span>
-                                </div>
-                            </div>
-                        </motion.div>
-                    ))}
+                    <AnimatePresence mode="popLayout">
+                        {filtered.map((img) => {
+                            // find the index in the full photos array for lightbox
+                            const globalIdx = photos.indexOf(img);
+                            return (
+                                <motion.div
+                                    key={img.title + img.src}
+                                    layout
+                                    className="photo-card relative aspect-square overflow-hidden rounded-xl bg-zinc-900 border border-solid border-zinc-800 transition-all duration-300 hover:border-orange/30 shadow-md cursor-pointer group"
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    transition={{ duration: 0.35 }}
+                                    onClick={() => openLightbox(globalIdx)}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`View photo: ${img.title}`}
+                                    onKeyDown={(e) => e.key === 'Enter' && openLightbox(globalIdx)}
+                                >
+                                    <div className="w-full h-full relative overflow-hidden">
+                                        <img
+                                            src={img.src}
+                                            alt={img.title}
+                                            className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
+                                        />
+
+                                        {/* Hover overlay */}
+                                        <div className="photo-overlay absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-3 text-center font-main">
+                                            <Maximize2 size={20} className="text-orange stroke-[2.5]" />
+                                            <span className="font-bold text-xs text-white tracking-wide">{img.title}</span>
+                                            <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-solid ${getCatColor(img.category)}`}>
+                                                {img.category}
+                                            </span>
+                                        </div>
+
+                                        {/* Fujifilm corner badge */}
+                                        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            <div className="flex items-center gap-1 bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-[8px] font-bold text-neutral-400 uppercase tracking-wider">
+                                                <Camera size={8} />
+                                                FUJIFILM
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
                 </div>
+
+                {/* ── Photo count ─────────────────────────────────────────── */}
+                <p className="text-center text-xs text-neutral-600 mt-6 font-main uppercase tracking-widest">
+                    {filtered.length} of {photos.length} frames
+                </p>
             </div>
 
-            {/* Premium Lightbox Modal */}
+            {/* ── Lightbox Modal ──────────────────────────────────────────── */}
             <AnimatePresence>
-                {activePhotoIndex !== null && (
-                    <motion.div 
+                {activeIndex !== null && (
+                    <motion.div
                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-4"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={() => setActivePhotoIndex(null)}
+                        onClick={closeLightbox}
                     >
-                        {/* Close button */}
-                        <button 
-                            className="absolute top-6 right-6 p-2.5 rounded-full bg-zinc-900/60 border border-solid border-zinc-800 text-white hover:text-orange hover:border-orange/20 transition-all duration-300 ease-in-out cursor-pointer z-50 hover:scale-105"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePhotoIndex(null);
-                            }}
-                            aria-label="Close Lightbox"
+                        {/* Close */}
+                        <button
+                            className="absolute top-5 right-5 p-2.5 rounded-full bg-zinc-900/70 border border-solid border-zinc-800 text-white hover:text-orange hover:border-orange/30 transition-all duration-200 z-50 cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
+                            aria-label="Close lightbox"
                         >
-                            <X size={24} />
+                            <X size={22} />
                         </button>
 
-                        {/* Prev Button */}
-                        <button 
-                            className="absolute left-4 sm:left-6 p-3 rounded-full bg-zinc-900/60 border border-solid border-zinc-800 text-white hover:text-orange hover:border-orange/20 transition-all duration-300 ease-in-out cursor-pointer z-50 hover:scale-105"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePhotoIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
-                            }}
-                            aria-label="Previous Photo"
+                        {/* Prev */}
+                        <button
+                            className="absolute left-4 sm:left-6 p-3 rounded-full bg-zinc-900/70 border border-solid border-zinc-800 text-white hover:text-orange hover:border-orange/30 transition-all duration-200 z-50 cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); prev(); }}
+                            aria-label="Previous photo"
                         >
-                            <ChevronLeft size={28} />
+                            <ChevronLeft size={26} />
                         </button>
 
-                        {/* Next Button */}
-                        <button 
-                            className="absolute right-4 sm:right-6 p-3 rounded-full bg-zinc-900/60 border border-solid border-zinc-800 text-white hover:text-orange hover:border-orange/20 transition-all duration-300 ease-in-out cursor-pointer z-50 hover:scale-105"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePhotoIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1));
-                            }}
-                            aria-label="Next Photo"
+                        {/* Next */}
+                        <button
+                            className="absolute right-4 sm:right-6 p-3 rounded-full bg-zinc-900/70 border border-solid border-zinc-800 text-white hover:text-orange hover:border-orange/30 transition-all duration-200 z-50 cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); next(); }}
+                            aria-label="Next photo"
                         >
-                            <ChevronRight size={28} />
+                            <ChevronRight size={26} />
                         </button>
 
-                        {/* Main Lightbox Content Container */}
-                        <motion.div 
-                            className="relative max-w-4xl max-h-[85vh] flex flex-col items-center select-none"
-                            initial={{ scale: 0.9, y: 20 }}
+                        {/* Image container */}
+                        <motion.div
+                            className="relative max-w-4xl w-full flex flex-col items-center gap-5 select-none"
+                            initial={{ scale: 0.92, y: 20 }}
                             animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.9, y: 20 }}
-                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                            exit={{ scale: 0.92, y: 20 }}
+                            transition={{ type: 'spring', damping: 26, stiffness: 200 }}
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <img 
-                                src={images[activePhotoIndex].src} 
-                                alt={images[activePhotoIndex].title} 
-                                className="max-w-full max-h-[70vh] object-contain rounded-lg border border-solid border-zinc-800 shadow-2xl" 
+                            <img
+                                src={photos[activeIndex].src}
+                                alt={photos[activeIndex].title}
+                                className="max-h-[70vh] max-w-full object-contain rounded-xl border border-solid border-zinc-800/60 shadow-2xl"
                             />
-                            
-                            {/* Image description banner */}
-                            <div className="mt-5 text-center font-main">
-                                <h3 className="text-white text-lg sm:text-xl font-bold font-accent tracking-wide">{images[activePhotoIndex].title}</h3>
-                                <span className="inline-block mt-2 text-xs text-orange uppercase tracking-wider font-bold bg-orange/10 px-3.5 py-1 rounded-full border border-solid border-orange/20">
-                                    {images[activePhotoIndex].category}
-                                </span>
+
+                            {/* Caption */}
+                            <div className="text-center font-main">
+                                <h3 className="text-white text-xl font-bold font-accent tracking-wide">
+                                    {photos[activeIndex].title}
+                                </h3>
+                                <div className="flex items-center justify-center gap-3 mt-2">
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border border-solid ${getCatColor(photos[activeIndex].category)}`}>
+                                        {photos[activeIndex].category}
+                                    </span>
+                                    {photos[activeIndex].location && (
+                                        <span className="flex items-center gap-1 text-[11px] text-neutral-500">
+                                            <MapPin size={10} />
+                                            {photos[activeIndex].location}
+                                        </span>
+                                    )}
+                                    <span className="flex items-center gap-1 text-[10px] text-neutral-600 font-bold uppercase tracking-widest">
+                                        <Camera size={10} />
+                                        FUJIFILM
+                                    </span>
+                                </div>
+                                {/* Counter */}
+                                <p className="mt-2 text-[10px] text-neutral-600 uppercase tracking-widest">
+                                    {activeIndex + 1} / {photos.length}
+                                </p>
                             </div>
                         </motion.div>
                     </motion.div>

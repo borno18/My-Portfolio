@@ -2,44 +2,48 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+
+    <!-- Favicon: replace /favicon.svg with your own icon in /public/ -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <!-- Primary Meta Tags -->
-    <title>Joydip Majumdar | Software Engineer Portfolio</title>
-    <meta name="title" content="Joydip Majumdar | Software Engineer Portfolio" />
-    <meta name="description" content="Joydip Majumdar's Developer Portfolio. B.Sc. in Software Engineering student at Shahjalal University of Science and Technology (SUST). Crafting clean, committed, and high-performance software." />
-    
-    <!-- Open Graph / Facebook -->
+
+    <!-- Primary SEO -->
+    <title>Joydip Majumdar — Software Engineering Portfolio</title>
+    <meta name="description" content="Portfolio of Joydip Majumdar, an aspiring software developer from Sylhet, Bangladesh. Showcasing projects, skills, education, and photography." />
+    <meta name="author" content="Joydip Majumdar" />
+    <meta name="keywords" content="Joydip Majumdar, software developer, portfolio, React, SUST, Bangladesh" />
+
+    <!-- Open Graph (social sharing previews) -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://github.com/borno18" />
-    <meta property="og:title" content="Joydip Majumdar | Software Engineer Portfolio" />
-    <meta property="og:description" content="Joydip Majumdar's Developer Portfolio. B.Sc. in Software Engineering student at Shahjalal University of Science and Technology (SUST). Crafting clean, committed, and high-performance software." />
-    <meta property="og:image" content="https://github.com/borno18.png" />
+    <meta property="og:title" content="Joydip Majumdar — Software Engineering Portfolio" />
+    <meta property="og:description" content="Aspiring software developer and problem solver from Sylhet, Bangladesh. See my projects, skills, and photography." />
+    <meta property="og:url" content="https://joydip-majumdar.vercel.app" />
+    <!-- Add a real og:image by placing an image in /public/og-image.png -->
+    <!-- <meta property="og:image" content="https://joydip-majumdar.vercel.app/og-image.png" /> -->
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://github.com/borno18" />
-    <meta property="twitter:title" content="Joydip Majumdar | Software Engineer Portfolio" />
-    <meta property="twitter:description" content="Joydip Majumdar's Developer Portfolio. B.Sc. in Software Engineering student at Shahjalal University of Science and Technology (SUST). Crafting clean, committed, and high-performance software." />
-    <meta property="twitter:image" content="https://github.com/borno18.png" />
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Joydip Majumdar — Software Engineering Portfolio" />
+    <meta name="twitter:description" content="Aspiring software developer and problem solver from Sylhet, Bangladesh." />
 
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100;400;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <!-- Naruto-themed Noscript fallback -->
+    <div id="root"></div>
+
+    <!-- Fallback for users with JavaScript disabled -->
     <noscript>
-      <div style="font-family: 'Outfit', sans-serif; text-align: center; padding: 50px; background: #0A0A0A; color: #FFFFFF; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-        <h1 style="color: #FF9800; font-family: 'Playfair Display', serif; font-size: 2.5rem; margin-bottom: 20px;">Jutsu Failed: JavaScript Required</h1>
-        <p style="margin-top: 15px; color: #888; max-width: 500px; line-height: 1.6;">
-          This shinobi portfolio requires JavaScript to channel chakra and load interactive scrolls. Please enable JavaScript in your browser to inspect the stats, photos, and missions.
-        </p>
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0A0A0A;color:#FFF;font-family:sans-serif;text-align:center;padding:2rem;">
+        <h1 style="color:#FF9800;margin-bottom:1rem;">Joydip Majumdar — Portfolio</h1>
+        <p>This portfolio requires JavaScript to run. Please enable JavaScript in your browser to view the full experience.</p>
+        <p style="margin-top:1rem;">You can reach me at <a href="mailto:joydipmajumdarborno@gmail.com" style="color:#FF9800;">joydipmajumdarborno@gmail.com</a></p>
       </div>
     </noscript>
 
-    <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

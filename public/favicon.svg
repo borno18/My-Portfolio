@@ -1,4 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <circle cx="50" cy="50" r="48" fill="#0A0A0A" />
-  <path d="M 50 50 C 45 47, 43 40, 48 37 C 55 33, 62 42, 58 50 C 52 61, 37 59, 34 47 C 29 29, 53 21, 67 29 C 85 40, 75 70, 50 75 C 19 80, 10 44, 25 22 C 43 -4, 91 1, 91 43" fill="none" stroke="#FF9800" stroke-width="8" stroke-linecap="round" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Dark background circle -->
+  <circle cx="32" cy="32" r="32" fill="#0A0A0A"/>
+  <!-- Naruto swirl / Uzumaki spiral in orange -->
+  <path d="M32 14
+    C23 14 16 21 16 30
+    C16 36 19.5 41 25 43.5
+    C23 41 22 37.5 23 34
+    C24.5 27 31 23.5 36 25.5
+    C41 27.5 43 33 41 38
+    C39 43 33.5 45.5 28 43.5
+    C34 46 42 43 46 37
+    C50 31 47 22 40 18
+    C37 16 34.5 14 32 14Z"
+    fill="#FF9800" opacity="0.9"/>
+  <!-- Center dot -->
+  <circle cx="32" cy="32" r="3.5" fill="#FF9800"/>
+  <!-- Subtle outer ring -->
+  <circle cx="32" cy="32" r="30" stroke="#FF9800" stroke-width="1" opacity="0.25" stroke-dasharray="4 4"/>
 </svg>

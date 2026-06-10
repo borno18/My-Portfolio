@@ -6,7 +6,7 @@
     "stargazers_count": 0,
     "forks_count": 0,
     "language": "JavaScript",
-    "updated_at": "2026-06-09T23:13:48Z"
+    "updated_at": "2026-06-10T19:57:15Z"
   },
   {
     "name": "SWE-06132124-Project",
@@ -19,7 +19,7 @@
   },
   {
     "name": "Gam4e",
-    "description": "No description provided for this ninja mission.",
+    "description": "No description provided.",
     "html_url": "https://github.com/borno18/Gam4e",
     "stargazers_count": 0,
     "forks_count": 0,
@@ -28,7 +28,7 @@
   },
   {
     "name": "Game_Project",
-    "description": "No description provided for this ninja mission.",
+    "description": "No description provided.",
     "html_url": "https://github.com/borno18/Game_Project",
     "stargazers_count": 0,
     "forks_count": 0,
@@ -43,5 +43,14 @@
     "forks_count": 0,
     "language": "Java",
     "updated_at": "2026-06-05T01:20:11Z"
+  },
+  {
+    "name": "University-Research-Collaboration-Center",
+    "description": "SRE course project ",
+    "html_url": "https://github.com/borno18/University-Research-Collaboration-Center",
+    "stargazers_count": 0,
+    "forks_count": 0,
+    "language": "HTML",
+    "updated_at": "2026-03-27T23:28:59Z"
   }
 ]

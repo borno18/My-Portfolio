@@ -7,30 +7,30 @@ import profileImg from '../assets/IMG_8750.jpg';
 
 const About = () => {
     const skills = [
-  {
-    name: 'Frontend',
-    items: ['HTML', 'CSS', 'JavaScript (Learning)', 'React (Learning)']
-  },
-  {
-    name: 'Programming Languages',
-    items: ['C', 'C++', 'Java (Learning)', 'Python (Learning)']
-  },
-  {
-    name: 'Backend',
-    items: ['FastAPI (Learning)']
-  },
-  {
-    name: 'Game Development',
-    items: ['Unreal Engine 5 (Learning)']
-  },
-  {
-    name: 'Computer Science',
-    items: ['Data Structures & Algorithms (C++)']
-  },
-  {
-    name: 'Tools',
-    items: ['Git', 'GitHub', 'VS Code', 'Vercel']
-  }
+    {
+        name: 'Machine Learning',
+        items: ['Python', 'PyTorch', 'TensorFlow', 'scikit-learn', 'NumPy', 'Pandas']
+    },
+    {
+        name: 'Programming',
+        items: ['C', 'C++', 'Java', 'Python']
+    },
+    {
+        name: 'Data Science',
+        items: ['NumPy', 'Pandas', 'Matplotlib', 'Jupyter Notebook', 'Kaggle']
+    },
+    {
+        name: 'Web Development',
+        items: ['HTML', 'CSS', 'JavaScript', 'React', 'FastAPI']
+    },
+    {
+        name: 'Algorithms & CS',
+        items: ['Data Structures', 'Algorithms (C++)', 'Dynamic Programming', 'Graph Theory']
+    },
+    {
+        name: 'Tools & Platforms',
+        items: ['Git', 'GitHub', 'VS Code', 'Vercel', 'Linux']
+    }
 ];
 
 
@@ -68,7 +68,7 @@ const About = () => {
                         viewport={{ once: true }}
                         transition={{ duration: 0.6 }}
                     >
-                        <h3>Aspiring Software Developer & Problem Solver</h3>
+                        <h3>Software Developer &amp; ML Enthusiast</h3>
 
                         <p className="about-text">
                             Hello, since you have come here, it's either to know me or to know my work. 

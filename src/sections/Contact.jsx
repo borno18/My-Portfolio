@@ -1,48 +1,63 @@
 import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Github, Linkedin, Send } from 'lucide-react';
+import { Mail, Github, Linkedin, Send, CheckCircle, XCircle, Loader } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import './Contact.css';
- 
+
+// To configure EmailJS, create a .env file in the project root with:
+//   VITE_EMAILJS_SERVICE_ID=your_service_id
+//   VITE_EMAILJS_TEMPLATE_ID=your_template_id
+//   VITE_EMAILJS_PUBLIC_KEY=your_public_key
+const SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID  || 'YOUR_SERVICE_ID';
+const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID';
+const PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY  || 'YOUR_PUBLIC_KEY';
+
+const OWNER_EMAIL = 'joydipmajumdarborno@gmail.com';
+const isEmailJSConfigured = () =>
+    SERVICE_ID !== 'YOUR_SERVICE_ID' && TEMPLATE_ID !== 'YOUR_TEMPLATE_ID' && PUBLIC_KEY !== 'YOUR_PUBLIC_KEY';
+
 const Contact = () => {
     const form = useRef();
-    const [status, setStatus] = useState('idle'); // 'idle' | 'sending' | 'success' | 'error'
- 
+    // status: 'idle' | 'sending' | 'success' | 'error'
+    const [status, setStatus] = useState('idle');
+
     const sendEmail = (e) => {
         e.preventDefault();
-        
-        const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID';
-        const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID';
-        const publicKey = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY';
- 
-        if (serviceId === 'YOUR_SERVICE_ID' || templateId === 'YOUR_TEMPLATE_ID' || publicKey === 'YOUR_PUBLIC_KEY') {
-            console.warn('[ContactForm] EmailJS credentials are still using default placeholders. Form submissions will fail.');
-        }
- 
-        setStatus('sending');
- 
-        emailjs.sendForm(
-            serviceId,
-            templateId,
-            form.current,
-            publicKey
-        )
-        .then(() => {
+        const name    = form.current.user_name?.value  || '';
+        const email   = form.current.user_email?.value || '';
+        const message = form.current.message?.value    || '';
+
+        // ── If EmailJS is not configured, fall back to mailto: ────────────
+        if (!isEmailJSConfigured()) {
+            const subject  = encodeURIComponent(`Portfolio Contact from ${name}`);
+            const body     = encodeURIComponent(`${message}\n\n---\nFrom: ${name}\nReply to: ${email}`);
+            window.open(`mailto:${OWNER_EMAIL}?subject=${subject}&body=${body}`, '_self');
             setStatus('success');
             e.target.reset();
             setTimeout(() => setStatus('idle'), 5000);
-        })
-        .catch((err) => {
-            console.error('[ContactForm] EmailJS Error:', err);
-            setStatus('error');
-            setTimeout(() => setStatus('idle'), 5000);
-        });
+            return;
+        }
+
+        // ── EmailJS send ──────────────────────────────────────────────────
+        setStatus('sending');
+        emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, form.current, PUBLIC_KEY)
+            .then(() => {
+                setStatus('success');
+                e.target.reset();
+                setTimeout(() => setStatus('idle'), 5000);
+            })
+            .catch(() => {
+                setStatus('error');
+                setTimeout(() => setStatus('idle'), 5000);
+            });
     };
- 
+
+    const isSending = status === 'sending';
+
     return (
         <section id="contact" className="contact">
             <div className="container">
- 
+
                 <motion.div
                     className="section-header"
                     initial={{ opacity: 0, y: 20 }}
@@ -52,9 +67,9 @@ const Contact = () => {
                     <h2 className="section-title">Messenger Hawk</h2>
                     <div className="title-underline"></div>
                 </motion.div>
- 
+
                 <div className="contact-grid">
- 
+
                     <motion.div
                         className="contact-info"
                         initial={{ opacity: 0, x: -30 }}
@@ -62,38 +77,39 @@ const Contact = () => {
                         viewport={{ once: true }}
                     >
                         <h3>Ready for the next mission?</h3>
-                        <p>Send me a message and let's build something epic together.</p>
- 
+                        <p>Send me a message and let&apos;s build something epic together.</p>
+
                         <div className="contact-links">
                             <a href="mailto:joydipmajumdarborno@gmail.com" className="contact-item transition-all duration-300 ease-in-out hover:text-orange">
                                 <Mail size={24} />
                                 <span>joydipmajumdarborno@gmail.com</span>
                             </a>
- 
+
                             <div className="social-links">
-                                <a 
-                                    href="https://github.com/borno18" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="transition-all duration-300 ease-in-out hover:text-orange hover:scale-105 inline-block"
+                                {/* FIX: target="_blank" (was "_next") + aria-labels added */}
+                                <a
+                                    href="https://github.com/borno18"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     aria-label="GitHub Profile"
+                                    className="transition-all duration-300 ease-in-out hover:text-orange hover:scale-105 inline-block"
                                 >
                                     <Github size={28} />
                                 </a>
- 
-                                <a 
-                                    href="https://www.linkedin.com/in/joydip-majumdar/" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="transition-all duration-300 ease-in-out hover:text-orange hover:scale-105 inline-block"
+
+                                <a
+                                    href="https://www.linkedin.com/in/joydip-majumdar/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     aria-label="LinkedIn Profile"
+                                    className="transition-all duration-300 ease-in-out hover:text-orange hover:scale-105 inline-block"
                                 >
                                     <Linkedin size={28} />
                                 </a>
                             </div>
                         </div>
                     </motion.div>
- 
+
                     {/* FORM PART */}
                     <motion.form
                         ref={form}
@@ -103,80 +119,87 @@ const Contact = () => {
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                     >
- 
-                         <div className="form-group">
+                        <div className="form-group">
                             <input
                                 name="user_name"
                                 type="text"
                                 placeholder="Your Name"
                                 required
-                                disabled={status === 'sending'}
-                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20 disabled:opacity-50"
+                                disabled={isSending}
+                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20"
                             />
                         </div>
- 
+
                         <div className="form-group">
                             <input
                                 name="user_email"
                                 type="email"
                                 placeholder="Email Address"
                                 required
-                                disabled={status === 'sending'}
-                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20 disabled:opacity-50"
+                                disabled={isSending}
+                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20"
                             />
                         </div>
- 
+
                         <div className="form-group">
                             <textarea
                                 name="message"
                                 placeholder="Your Message"
                                 rows="5"
                                 required
-                                disabled={status === 'sending'}
-                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20 disabled:opacity-50"
+                                disabled={isSending}
+                                className="transition-all duration-300 ease-in-out focus:border-orange focus:ring-1 focus:ring-orange/20"
                             ></textarea>
                         </div>
- 
-                        <button 
-                            type="submit" 
-                            disabled={status === 'sending'}
-                            className="btn btn-primary form-submit transition-all duration-300 ease-in-out hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100 flex items-center justify-center gap-2"
+
+                        <button
+                            type="submit"
+                            disabled={isSending}
+                            className="btn btn-primary form-submit transition-all duration-300 ease-in-out hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
                         >
-                            {status === 'sending' ? (
-                                <>Sending Scroll... <Send className="animate-pulse" size={18} /></>
+                            {isSending ? (
+                                <>
+                                    <Loader size={18} className="animate-spin" />
+                                    Sending...
+                                </>
                             ) : (
-                                <>Send Scroll ✉ <Send size={18} /></>
+                                <>
+                                    Send Scroll ✉ <Send size={18} />
+                                </>
                             )}
                         </button>
 
+                        {/* Inline status toast — replaces browser alert() */}
                         <AnimatePresence>
                             {status === 'success' && (
-                                <motion.div 
-                                    className="mt-4 p-3.5 rounded-xl border border-solid border-emerald-500/30 bg-emerald-950/20 text-emerald-400 text-xs sm:text-sm text-center font-main font-semibold"
-                                    initial={{ opacity: 0, y: 10 }}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 10 }}
+                                    exit={{ opacity: 0, y: 8 }}
+                                    className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-sm font-medium"
                                 >
-                                    Scroll sent successfully! 🦅 The Messenger Hawk is on its way.
+                                    <CheckCircle size={16} />
+                                    Message sent successfully! I&apos;ll get back to you soon.
                                 </motion.div>
                             )}
                             {status === 'error' && (
-                                <motion.div 
-                                    className="mt-4 p-3.5 rounded-xl border border-solid border-red-500/30 bg-red-950/20 text-red-400 text-xs sm:text-sm text-center font-main font-semibold"
-                                    initial={{ opacity: 0, y: 10 }}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 10 }}
+                                    exit={{ opacity: 0, y: 8 }}
+                                    className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-950/60 border border-red-500/30 text-red-400 text-sm font-medium"
                                 >
-                                    Failed to send scroll. Please try again or email directly.
+                                    <XCircle size={16} />
+                                    Failed to send. Please try again or email me directly.
                                 </motion.div>
                             )}
                         </AnimatePresence>
- 
+
                     </motion.form>
                 </div>
             </div>
         </section>
     );
 };
- 
+
 export default Contact;

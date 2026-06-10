@@ -20,10 +20,10 @@ const Education = () => {
     ];
 
     return (
-        <section id="education" className="education bg-[#0A0A0A] relative overflow-hidden">
+        <section id="education" className="education relative overflow-hidden">
             
             {/* Subtle decorative background glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-orange/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-orange/20 rounded-full blur-3xl pointer-events-none" />
 
             <div className="container max-w-5xl mx-auto px-4 relative z-10">
                 <motion.div
@@ -65,7 +65,7 @@ const Education = () => {
                             </div>
                         </motion.div>
                     ))}
-                    <div className="timeline-line"></div>
+                    <div className="timeline-line bg-zinc-800"></div>
                 </div>
             </div>
         </section>

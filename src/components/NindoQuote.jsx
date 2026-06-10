@@ -32,20 +32,21 @@ const quotes = [
 const NindoQuote = () => {
   const [index, setIndex] = useState(0);
 
-  // Cycle automatically every 15 seconds, resetting the timer when index changes (manual refresh)
+  // FIX: Run only once. Use functional updater so the callback never
+  // captures a stale `index` value, and the timer never resets on click.
   useEffect(() => {
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % quotes.length);
     }, 15000);
     return () => clearInterval(timer);
-  }, [index]);
+  }, []);
 
   const handleNext = () => {
     setIndex((prev) => (prev + 1) % quotes.length);
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto mt-8 relative font-main px-4">
+    <div className="w-full mt-5 relative font-main">
       <div className="rounded-xl border border-solid border-zinc-800/80 bg-zinc-900/30 backdrop-blur-md p-6 relative group overflow-hidden">
         
         {/* Glow */}
@@ -64,7 +65,7 @@ const NindoQuote = () => {
               className="text-center"
             >
               <p className="text-zinc-300 text-sm sm:text-base italic leading-relaxed px-6 font-medium">
-                "{quotes[index].text}"
+                &ldquo;{quotes[index].text}&rdquo;
               </p>
               <span className="block mt-3 text-xs font-bold text-orange tracking-widest uppercase">
                 — {quotes[index].author}
@@ -73,12 +74,12 @@ const NindoQuote = () => {
           </AnimatePresence>
         </div>
 
-        {/* Refresh button */}
+        {/* Refresh button — aria-label added for screen readers */}
         <button
           onClick={handleNext}
+          aria-label="Next quote"
           className="absolute bottom-3 right-4 p-1.5 rounded-lg border border-solid border-zinc-800 bg-zinc-950/40 text-neutral-500 hover:text-orange hover:border-orange/20 transition-all duration-300 ease-in-out cursor-pointer hover:scale-105"
           title="Cycle Quote"
-          aria-label="Cycle Quote"
         >
           <RefreshCw size={12} className="group-hover:rotate-45 transition-transform duration-300" />
         </button>
