@@ -17,6 +17,7 @@ const Navbar = () => {
 
     const navLinks = [
         { name: 'About', href: '#about' },
+        { name: 'Education', href: '#education' },
         { name: 'Projects', href: '#projects' },
         { name: 'Skills', href: '#skills' },
         { name: 'Contact', href: '#contact' },
@@ -58,6 +59,15 @@ const Navbar = () => {
                 <div 
                     className="mobile-toggle transition-all duration-300 ease-in-out hover:text-orange" 
                     onClick={() => setIsOpen(!isOpen)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Toggle navigation menu"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setIsOpen(!isOpen);
+                        }
+                    }}
                 >
                     {isOpen ? <X size={28} /> : <Menu size={28} />}
                 </div>

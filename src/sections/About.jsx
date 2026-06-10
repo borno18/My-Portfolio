@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { User, Target, ShieldCheck } from 'lucide-react';
+import ShinobiStats from '../components/ShinobiStats';
 import './About.css';
 import profileImg from '../assets/IMG_8750.jpg';
 
@@ -76,7 +77,7 @@ const About = () => {
                             I love to cook, read, watch movies, and play video games.
                             I'm currently learning how to build software and systems. 
                             This website has my blog posts, photos, projects, and contact information. 
-                            Hopefully, I dont disappoint you.
+                            Hopefully, I don't disappoint you.
                         </p>
 
 
@@ -99,29 +100,33 @@ const About = () => {
                     </motion.div>
                 </div>
 
-                <div className="skills-container">
-                    {skills.map((skillGroup, idx) => (
-                        <motion.div
-                            key={skillGroup.name}
-                            className="skill-card"
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ delay: idx * 0.1 }}
-                        >
-                            <h4>{skillGroup.name}</h4>
-                            <div className="skill-tags">
-                                {skillGroup.items.map(skill => (
-                                    <span 
-                                        key={skill} 
-                                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold font-main bg-zinc-900 border border-solid border-zinc-850 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900/80 transition-all duration-300 ease-in-out cursor-default shadow-sm"
-                                    >
-                                        {skill}
-                                    </span>
-                                ))}
-                            </div>
-                        </motion.div>
-                    ))}
+                <div id="skills" className="w-full">
+                    <ShinobiStats />
+
+                    <div className="skills-container">
+                        {skills.map((skillGroup, idx) => (
+                            <motion.div
+                                key={skillGroup.name}
+                                className="skill-card"
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: idx * 0.1 }}
+                            >
+                                <h4>{skillGroup.name}</h4>
+                                <div className="skill-tags">
+                                    {skillGroup.items.map(skill => (
+                                        <span 
+                                            key={skill} 
+                                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold font-main bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900/80 transition-all duration-300 ease-in-out cursor-default shadow-sm"
+                                        >
+                                            {skill}
+                                        </span>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </section>

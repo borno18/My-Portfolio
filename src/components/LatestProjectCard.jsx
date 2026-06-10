@@ -24,6 +24,10 @@ const LatestProjectCard = ({ project }) => {
   if (!project) return null;
   const dotColor = languageColors[project.language] || '#FF9800';
 
+  const isRecentlyUpdated = project.updated_at 
+    ? (new Date() - new Date(project.updated_at)) < 30 * 24 * 60 * 60 * 1000 
+    : false;
+
   return (
     <motion.a
       href={project.html_url}
@@ -35,6 +39,7 @@ const LatestProjectCard = ({ project }) => {
       viewport={{ once: true }}
       transition={{ duration: 0.5, ease: "easeOut" }}
       whileHover={{ y: -5 }}
+      aria-label={`View GitHub repository for project ${project.name}`}
     >
       <div className="relative overflow-hidden rounded-xl border border-solid border-zinc-800 bg-zinc-900/50 backdrop-blur-md p-6 sm:p-8 transition-all duration-300 ease-in-out group-hover:border-zinc-700 group-hover:bg-zinc-900/80 group-hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
         
@@ -44,13 +49,26 @@ const LatestProjectCard = ({ project }) => {
         {/* Card Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange"></span>
-            </span>
-            <span className="text-[10px] font-bold tracking-widest text-orange uppercase font-main">
-              Mission Active
-            </span>
+            {isRecentlyUpdated ? (
+              <>
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-orange"></span>
+                </span>
+                <span className="text-[10px] font-bold tracking-widest text-orange uppercase font-main">
+                  Mission Active
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="flex h-2 w-2 relative">
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] font-bold tracking-widest text-emerald-400 uppercase font-main">
+                  Mission Accomplished
+                </span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1 text-xs text-neutral-500 group-hover:text-orange transition-all duration-300 ease-in-out font-main">
             <span>Codebase</span>

@@ -1,11 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, Zap } from 'lucide-react';
+import ChakraCanvas from '../components/ChakraCanvas';
+import NindoQuote from '../components/NindoQuote';
 import './Hero.css';
 
 const Hero = () => {
     return (
         <section className="hero">
+            <ChakraCanvas />
             <div className="chakra-bg">
                 <div className="chakra-particle p1"></div>
                 <div className="chakra-particle p2"></div>
@@ -43,6 +46,8 @@ const Hero = () => {
                     >
                         A chunin waiting to become a jonin by completing some S rank missions.
                     </motion.p>
+
+                    <NindoQuote />
 
                     <motion.div
                         className="hero-cta"

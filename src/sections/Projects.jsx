@@ -6,7 +6,7 @@ import './Projects.css';
 
 const Projects = () => {
     return (
-        <section id="projects" className="projects py-20 bg-[#1A1A1A]">
+        <section id="projects" className="projects bg-[#1A1A1A]">
             <div className="container max-w-6xl mx-auto px-4">
                 <motion.div
                     className="section-header text-center mb-16"
