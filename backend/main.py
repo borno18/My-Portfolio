@@ -175,7 +175,7 @@ def login(request: Request, data: LoginRequest, response: Response, db: Session 
         value=token,
         httponly=True,
         secure=True,
-        samesite="strict",
+        samesite="none",
         max_age=12 * 3600, # 12 hours
         expires=12 * 3600
     )
@@ -187,7 +187,7 @@ def logout(response: Response):
         key="session_token",
         httponly=True,
         secure=True,
-        samesite="strict"
+        samesite="none"
     )
     return {"status": "success", "message": "Logged out successfully"}
 
@@ -336,10 +336,10 @@ def get_photo(id: int, db: Session = Depends(get_db)):
 @app.post("/api/upload")
 def upload_file(file: UploadFile = File(...), admin_session = Depends(get_current_admin)):
     file_size = getattr(file, "size", None)
-    if file_size is not None and file_size > 10 * 1024 * 1024:
+    if file_size is not None and file_size > 25 * 1024 * 1024:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File size exceeds maximum allowed limit (10MB)"
+            detail="File size exceeds maximum allowed limit (25MB)"
         )
         
     allowed_mimes = ["image/jpeg", "image/png", "image/gif", "image/webp"]
@@ -368,10 +368,10 @@ def upload_file(file: UploadFile = File(...), admin_session = Depends(get_curren
 def get_upload_signature(request: SignatureRequest, admin_session = Depends(get_current_admin)):
     # Enforce file size check (max 10MB)
     if request.file_size is not None:
-        if request.file_size > 10 * 1024 * 1024:
+        if request.file_size > 25 * 1024 * 1024:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File size exceeds maximum allowed limit (10MB)"
+                detail="File size exceeds maximum allowed limit (25MB)"
             )
             
     # Enforce MIME type check

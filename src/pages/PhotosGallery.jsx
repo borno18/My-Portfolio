@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Maximize2, X, ChevronLeft, ChevronRight, Camera, MapPin, ArrowLeft } from 'lucide-react';
 import { useMotionTransition, revealVariants } from '../lib/motion';
 import { photos as staticPhotos } from '../assets/photos.js';
+import { optimizeCloudinaryUrl } from '../lib/cloudinary';
 import './PhotosGallery.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -177,7 +178,7 @@ const PhotosGallery = () => {
                                         >
                                             <div className="w-full h-full relative overflow-hidden">
                                                 <img
-                                                    src={img.thumbnail}
+                                                    src={optimizeCloudinaryUrl(img.thumbnail, 600)}
                                                     alt={img.title}
                                                     className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
                                                     loading="lazy"
@@ -256,7 +257,7 @@ const PhotosGallery = () => {
                         >
                             <div className="max-w-[100%] md:max-w-[65%] flex items-center justify-center">
                                 <img
-                                    src={photos[activeIndex].src}
+                                    src={optimizeCloudinaryUrl(photos[activeIndex].src, 1600)}
                                     alt={photos[activeIndex].title}
                                     className="max-h-[60vh] max-w-full object-contain rounded-xl border border-solid border-zinc-800/60 shadow-2xl"
                                 />
