@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Quote, RefreshCw } from 'lucide-react';
+import { useMotionTransition } from '../lib/motion';
 
 const quotes = [
   {
@@ -31,9 +32,9 @@ const quotes = [
 
 const NindoQuote = () => {
   const [index, setIndex] = useState(0);
+  const transition = useMotionTransition('standard');
+  const shouldReduce = useReducedMotion();
 
-  // FIX: Run only once. Use functional updater so the callback never
-  // captures a stale `index` value, and the timer never resets on click.
   useEffect(() => {
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % quotes.length);
@@ -58,10 +59,10 @@ const NindoQuote = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: shouldReduce ? 0 : 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              exit={{ opacity: 0, y: shouldReduce ? 0 : -10 }}
+              transition={transition}
               className="text-center"
             >
               <p className="text-zinc-300 text-sm sm:text-base italic leading-relaxed px-6 font-medium">
@@ -74,7 +75,7 @@ const NindoQuote = () => {
           </AnimatePresence>
         </div>
 
-        {/* Refresh button — aria-label added for screen readers */}
+        {/* Refresh button */}
         <button
           onClick={handleNext}
           aria-label="Next quote"

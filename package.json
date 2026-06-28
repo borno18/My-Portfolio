@@ -13,8 +13,10 @@
     "@emailjs/browser": "^4.4.1",
     "framer-motion": "^12.29.2",
     "lucide-react": "^0.563.0",
+    "markdown-to-jsx": "^9.8.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

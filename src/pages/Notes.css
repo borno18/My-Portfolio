@@ -1,0 +1,16 @@
+.notes-page {
+    min-height: 100vh;
+    padding-bottom: 5rem;
+}
+
+.password-gate {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.note-card {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.note-card:hover {
+    box-shadow: 0 4px 25px rgba(255, 152, 0, 0.05);
+}

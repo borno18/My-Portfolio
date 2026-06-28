@@ -2,46 +2,56 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { User, Target, ShieldCheck } from 'lucide-react';
 import ShinobiStats from '../components/ShinobiStats';
+import { useSharedReveal, useMotionTransition, revealVariants } from '../lib/motion';
 import './About.css';
 import profileImg from '../assets/IMG_8750.jpg';
 
 const About = () => {
-    const skills = [
-    {
-        name: 'Machine Learning',
-        items: ['Python', 'PyTorch', 'TensorFlow', 'scikit-learn', 'NumPy', 'Pandas']
-    },
-    {
-        name: 'Programming',
-        items: ['C', 'C++', 'Java', 'Python']
-    },
-    {
-        name: 'Data Science',
-        items: ['NumPy', 'Pandas', 'Matplotlib', 'Jupyter Notebook', 'Kaggle']
-    },
-    {
-        name: 'Web Development',
-        items: ['HTML', 'CSS', 'JavaScript', 'React', 'FastAPI']
-    },
-    {
-        name: 'Algorithms & CS',
-        items: ['Data Structures', 'Algorithms (C++)', 'Dynamic Programming', 'Graph Theory']
-    },
-    {
-        name: 'Tools & Platforms',
-        items: ['Git', 'GitHub', 'VS Code', 'Vercel', 'Linux']
-    }
-];
+    const transition = useMotionTransition('standard');
+    const slowTransition = useMotionTransition('slow');
 
+    // Shared reveal hooks
+    const [headerRef, headerVisible] = useSharedReveal(true);
+    const [imageRef, imageVisible] = useSharedReveal(true);
+    const [contentRef, contentVisible] = useSharedReveal(true);
+
+    const skills = [
+        {
+            name: 'Machine Learning',
+            items: ['Python', 'PyTorch', 'TensorFlow', 'scikit-learn', 'NumPy', 'Pandas']
+        },
+        {
+            name: 'Programming',
+            items: ['C', 'C++', 'Java', 'Python']
+        },
+        {
+            name: 'Data Science',
+            items: ['NumPy', 'Pandas', 'Matplotlib', 'Jupyter Notebook', 'Kaggle']
+        },
+        {
+            name: 'Web Development',
+            items: ['HTML', 'CSS', 'JavaScript', 'React', 'FastAPI']
+        },
+        {
+            name: 'Algorithms & CS',
+            items: ['Data Structures', 'Algorithms (C++)', 'Dynamic Programming', 'Graph Theory']
+        },
+        {
+            name: 'Tools & Platforms',
+            items: ['Git', 'GitHub', 'VS Code', 'Vercel', 'Linux']
+        }
+    ];
 
     return (
         <section id="about" className="about">
             <div className="container">
                 <motion.div
+                    ref={headerRef}
                     className="section-header"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
+                    initial="hidden"
+                    animate={headerVisible ? "visible" : "hidden"}
+                    variants={revealVariants}
+                    transition={transition}
                 >
                     <h2 className="section-title">Nindo: My Developer Way</h2>
                     <div className="title-underline"></div>
@@ -49,24 +59,24 @@ const About = () => {
 
                 <div className="about-grid">
                     <motion.div
+                        ref={imageRef}
                         className="about-image-card"
-                        initial={{ opacity: 0, x: -30 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={imageVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
+                        transition={slowTransition}
                     >
                         <div className="image-placeholder">
-  <img src={profileImg} alt="Profile" className="profile-image" />
-</div>
+                            <img src={profileImg} alt="Profile" className="profile-image" />
+                        </div>
                         <div className="image-overlay-border"></div>
                     </motion.div>
 
                     <motion.div
+                        ref={contentRef}
                         className="about-content"
-                        initial={{ opacity: 0, x: 30 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={contentVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
+                        transition={slowTransition}
                     >
                         <h3>Software Developer &amp; ML Enthusiast</h3>
 
@@ -79,7 +89,6 @@ const About = () => {
                             This website has my blog posts, photos, projects, and contact information. 
                             Hopefully, I don't disappoint you.
                         </p>
-
 
                         <div className="about-stats">
                             <div className="stat-item">
@@ -104,28 +113,33 @@ const About = () => {
                     <ShinobiStats />
 
                     <div className="skills-container">
-                        {skills.map((skillGroup, idx) => (
-                            <motion.div
-                                key={skillGroup.name}
-                                className="skill-card"
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ delay: idx * 0.1 }}
-                            >
-                                <h4>{skillGroup.name}</h4>
-                                <div className="skill-tags">
-                                    {skillGroup.items.map(skill => (
-                                        <span 
-                                            key={skill} 
-                                            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold font-main bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900/80 transition-all duration-300 ease-in-out cursor-default shadow-sm"
-                                        >
-                                            {skill}
-                                        </span>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        ))}
+                        {skills.map((skillGroup, idx) => {
+                            // Unique reveal hook for each card to prevent sync triggers
+                            const [cardRef, cardVisible] = useSharedReveal(true);
+                            return (
+                                <motion.div
+                                    key={skillGroup.name}
+                                    ref={cardRef}
+                                    className="skill-card"
+                                    initial="hidden"
+                                    animate={cardVisible ? "visible" : "hidden"}
+                                    variants={revealVariants}
+                                    transition={{ ...transition, delay: idx * 0.05 }}
+                                >
+                                    <h4>{skillGroup.name}</h4>
+                                    <div className="skill-tags">
+                                        {skillGroup.items.map(skill => (
+                                            <span 
+                                                key={skill} 
+                                                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold font-main bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900/80 transition-all duration-300 ease-in-out cursor-default shadow-sm"
+                                            >
+                                                {skill}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>

@@ -10,6 +10,21 @@ const ChakraCanvas = () => {
     const ctx = canvas.getContext('2d');
     let animationFrameId;
 
+    // Check prefers-reduced-motion
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let shouldAnimate = !reducedMotionQuery.matches;
+
+    const handleReducedMotionChange = (e) => {
+      shouldAnimate = !e.matches;
+      if (!shouldAnimate) {
+        cancelAnimationFrame(animationFrameId);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      } else {
+        animate();
+      }
+    };
+    reducedMotionQuery.addEventListener('change', handleReducedMotionChange);
+
     // Track mouse
     const mouse = {
       x: null,
@@ -17,16 +32,31 @@ const ChakraCanvas = () => {
       radius: 200, // Pull radius
     };
 
+    // Throttle helper
+    const throttle = (fn, wait) => {
+      let time = Date.now();
+      return function() {
+        if ((time + wait - Date.now()) < 0) {
+          fn();
+          time = Date.now();
+        }
+      }
+    };
+
     // Resize canvas
     const handleResize = () => {
+      if (!canvas.parentElement) return;
       canvas.width = canvas.parentElement.clientWidth;
       canvas.height = canvas.parentElement.clientHeight;
     };
+    
     handleResize();
-    window.addEventListener('resize', handleResize);
+    const throttledResize = throttle(handleResize, 150);
+    window.addEventListener('resize', throttledResize);
 
     // Track mouse movements
     const handleMouseMove = (e) => {
+      if (!shouldAnimate) return;
       const rect = canvas.getBoundingClientRect();
       mouse.x = e.clientX - rect.left;
       mouse.y = e.clientY - rect.top;
@@ -39,6 +69,7 @@ const ChakraCanvas = () => {
 
     // Disperse particles on click
     const handleMouseClick = (e) => {
+      if (!shouldAnimate) return;
       const rect = canvas.getBoundingClientRect();
       const clickX = e.clientX - rect.left;
       const clickY = e.clientY - rect.top;
@@ -55,9 +86,11 @@ const ChakraCanvas = () => {
       });
     };
 
-    canvas.parentElement.addEventListener('mousemove', handleMouseMove);
-    canvas.parentElement.addEventListener('mouseleave', handleMouseLeave);
-    canvas.parentElement.addEventListener('click', handleMouseClick);
+    if (canvas.parentElement) {
+      canvas.parentElement.addEventListener('mousemove', handleMouseMove);
+      canvas.parentElement.addEventListener('mouseleave', handleMouseLeave);
+      canvas.parentElement.addEventListener('click', handleMouseClick);
+    }
 
     // Color definitions
     const colors = [
@@ -123,7 +156,7 @@ const ChakraCanvas = () => {
     }
 
     // Initialize particles
-    const particleCount = Math.min(65, Math.floor((canvas.width * canvas.height) / 15000));
+    const particleCount = Math.min(45, Math.floor((canvas.width * canvas.height) / 25000));
     const particles = [];
     for (let i = 0; i < particleCount; i++) {
       particles.push(new Particle());
@@ -131,6 +164,7 @@ const ChakraCanvas = () => {
 
     // Animation Loop
     const animate = () => {
+      if (!shouldAnimate) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Draw faint connections between close particles (Chakra Network)
@@ -141,7 +175,7 @@ const ChakraCanvas = () => {
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 100) {
-            const alpha = (100 - dist) / 100 * 0.07;
+            const alpha = (100 - dist) / 100 * 0.05;
             ctx.beginPath();
             ctx.moveTo(particles[i].x, particles[i].y);
             ctx.lineTo(particles[j].x, particles[j].y);
@@ -161,12 +195,15 @@ const ChakraCanvas = () => {
       animationFrameId = requestAnimationFrame(animate);
     };
 
-    animate();
+    if (shouldAnimate) {
+      animate();
+    }
 
     // Cleanup listeners
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', throttledResize);
+      reducedMotionQuery.removeEventListener('change', handleReducedMotionChange);
       if (canvas && canvas.parentElement) {
         canvas.parentElement.removeEventListener('mousemove', handleMouseMove);
         canvas.parentElement.removeEventListener('mouseleave', handleMouseLeave);

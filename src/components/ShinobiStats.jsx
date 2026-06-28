@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Github, Code2, Users, MapPin, Award, BookOpen, Trophy, ExternalLink, Zap, RefreshCw } from 'lucide-react';
+import { useMotionTransition } from '../lib/motion';
 
 // Static build-time data used as instant fallbacks (no loading spinner on first paint)
 import ghFallback from '../data/github-profile.json';
@@ -91,12 +92,14 @@ async function fetchGitHub() {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 const ShinobiStats = () => {
-  // Start with static build-time data (instant render, no loading state)
   const [gh, setGh] = useState(ghFallback);
   const [lc, setLc] = useState(lcFallback);
   const [cf, setCf] = useState(cfFallback);
   const [isLive, setIsLive] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  
+  const transition = useMotionTransition('standard');
+  const shouldReduce = useReducedMotion();
 
   useEffect(() => {
     let cancelled = false;
@@ -109,7 +112,6 @@ const ShinobiStats = () => {
       if (results[1].status === 'fulfilled') setLc(results[1].value);
       if (results[2].status === 'fulfilled') setCf(results[2].value);
 
-      // At least one succeeded = live data
       if (results.some(r => r.status === 'fulfilled')) {
         setIsLive(true);
         setLastUpdated(new Date());
@@ -131,10 +133,10 @@ const ShinobiStats = () => {
   const ghRank   = getGHRank(gh.public_repos);
 
   const cardAnim = (dir) => ({
-    initial: { opacity: 0, x: dir },
+    initial: { opacity: 0, x: shouldReduce ? 0 : dir },
     whileInView: { opacity: 1, x: 0 },
     viewport: { once: true },
-    transition: { duration: 0.5 },
+    transition: transition,
   });
 
   return (
@@ -171,7 +173,7 @@ const ShinobiStats = () => {
         {/* ── LEFT: GitHub Intel ─────────────────────────────────────────── */}
         <motion.div
           className="rounded-2xl border border-solid border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-md hover:border-zinc-700/60 transition-all duration-300"
-          {...cardAnim(-25)}
+          {...cardAnim(-20)}
         >
           <div className="flex items-center gap-3 mb-5">
             <div className="p-2.5 rounded-lg bg-zinc-800/60 text-orange">
@@ -232,7 +234,7 @@ const ShinobiStats = () => {
         {/* ── RIGHT: Problem Solving (LC + CF) ──────────────────────────── */}
         <motion.div
           className="rounded-2xl border border-solid border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-md hover:border-zinc-700/60 transition-all duration-300 flex flex-col gap-5"
-          {...cardAnim(25)}
+          {...cardAnim(20)}
         >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-zinc-800/60 text-orange">

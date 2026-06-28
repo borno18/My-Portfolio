@@ -1,0 +1,27 @@
+.admin-page {
+    min-height: 100vh;
+    padding-bottom: 5rem;
+}
+
+.login-gate {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+.dashboard-layout {
+    transition: all 0.3s ease;
+}
+
+/* Table styles */
+table th, table td {
+    border-bottom: 1px solid #222;
+}
+
+table th {
+    font-weight: 600;
+}
+
+/* Custom inputs */
+input, textarea, select {
+    outline: none;
+    transition: border-color 0.2s ease;
+}

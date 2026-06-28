@@ -1,6 +1,7 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Star, GitFork, GitBranch, ArrowUpRight } from 'lucide-react';
+import { useMotionTransition } from '../lib/motion';
 
 const languageColors = {
   JavaScript: '#f1e05a',
@@ -21,6 +22,9 @@ const languageColors = {
 };
 
 const LatestProjectCard = ({ project }) => {
+  const transition = useMotionTransition('standard');
+  const shouldReduce = useReducedMotion();
+
   if (!project) return null;
   const dotColor = languageColors[project.language] || '#FF9800';
 
@@ -36,11 +40,11 @@ const LatestProjectCard = ({ project }) => {
       rel="noopener noreferrer"
       aria-label={`View GitHub repository: ${project.name}`}
       className="block no-underline text-white w-full max-w-2xl mx-auto group"
-      initial={{ opacity: 0, y: 15 }}
+      initial={{ opacity: 0, y: shouldReduce ? 0 : 15 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      whileHover={{ y: -5 }}
+      transition={transition}
+      whileHover={shouldReduce ? {} : { y: -5 }}
     >
       <div className="relative overflow-hidden rounded-xl border border-solid border-zinc-800 bg-zinc-900/50 backdrop-blur-md p-6 sm:p-8 transition-all duration-300 ease-in-out group-hover:border-zinc-700 group-hover:bg-zinc-900/80 group-hover:shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
         

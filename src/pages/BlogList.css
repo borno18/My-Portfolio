@@ -1,0 +1,23 @@
+.blog-list-page {
+    min-height: 100vh;
+    padding-bottom: 5rem;
+}
+
+.back-link {
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.blog-card {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.blog-card:hover {
+    box-shadow: 0 4px 25px rgba(255, 152, 0, 0.05);
+}
+
+.title-underline {
+    height: 3px;
+    background: var(--color-orange);
+    border-radius: 2px;
+}

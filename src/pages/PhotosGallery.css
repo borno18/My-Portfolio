@@ -1,0 +1,22 @@
+.photos-gallery-page {
+    min-height: 100vh;
+    padding-bottom: 5rem;
+}
+
+.photography-grid {
+    transition: all 0.3s ease;
+}
+
+.photo-card {
+    transition: all 0.3s ease;
+}
+
+.photo-overlay {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.photo-card:hover .photo-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}

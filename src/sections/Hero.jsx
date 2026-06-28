@@ -3,9 +3,13 @@ import { motion } from 'framer-motion';
 import { ChevronRight, Zap } from 'lucide-react';
 import ChakraCanvas from '../components/ChakraCanvas';
 import NindoQuote from '../components/NindoQuote';
+import { useMotionTransition } from '../lib/motion';
 import './Hero.css';
 
 const Hero = () => {
+    const transition = useMotionTransition('standard');
+    const slowTransition = useMotionTransition('slow');
+
     return (
         <section className="hero">
             <ChakraCanvas />
@@ -20,21 +24,21 @@ const Hero = () => {
                     className="hero-text"
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    transition={slowTransition}
                 >
                     <motion.h4
                         className="hero-subtitle"
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
+                        transition={{ ...transition, delay: 0.3 }}
                     >
                         Believe It!
                     </motion.h4>
                     <motion.h1
                         className="hero-title"
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.7, duration: 0.6 }}
+                        transition={{ ...slowTransition, delay: 0.5 }}
                     >
                         Mastering the Art of <span className="highlight">Software Engineering</span>
                     </motion.h1>
@@ -42,7 +46,7 @@ const Hero = () => {
                         className="hero-description"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 1 }}
+                        transition={{ ...transition, delay: 0.7 }}
                     >
                         A chunin waiting to become a jonin by completing some S rank missions.
                     </motion.p>
@@ -53,7 +57,7 @@ const Hero = () => {
                         className="hero-cta"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 1.2 }}
+                        transition={{ ...transition, delay: 0.9 }}
                     >
                         <a href="#projects" className="btn btn-primary transition-all duration-300 ease-in-out">
                             View Missions <ChevronRight size={18} />
@@ -67,9 +71,9 @@ const Hero = () => {
 
                 <motion.div
                     className="hero-image-wrapper"
-                    initial={{ opacity: 0, scale: 0.8 }}
+                    initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 1, ease: "easeOut" }}
+                    transition={slowTransition}
                 >
                     <div className="ninja-circle">
                         <Zap className="chakra-icon" size={64} />

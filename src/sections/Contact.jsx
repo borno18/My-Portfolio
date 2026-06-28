@@ -1,13 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Mail, Github, Linkedin, Send, CheckCircle, XCircle, Loader } from 'lucide-react';
 import emailjs from '@emailjs/browser';
+import { useSharedReveal, useMotionTransition, revealVariants } from '../lib/motion';
 import './Contact.css';
 
-// To configure EmailJS, create a .env file in the project root with:
-//   VITE_EMAILJS_SERVICE_ID=your_service_id
-//   VITE_EMAILJS_TEMPLATE_ID=your_template_id
-//   VITE_EMAILJS_PUBLIC_KEY=your_public_key
 const SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID  || 'YOUR_SERVICE_ID';
 const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID';
 const PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY  || 'YOUR_PUBLIC_KEY';
@@ -18,8 +15,14 @@ const isEmailJSConfigured = () =>
 
 const Contact = () => {
     const form = useRef();
-    // status: 'idle' | 'sending' | 'success' | 'error'
     const [status, setStatus] = useState('idle');
+    const transition = useMotionTransition('standard');
+    const slowTransition = useMotionTransition('slow');
+    const shouldReduce = useReducedMotion();
+
+    const [headerRef, headerVisible] = useSharedReveal(true);
+    const [infoRef, infoVisible] = useSharedReveal(true);
+    const [formRef, formVisible] = useSharedReveal(true);
 
     const sendEmail = (e) => {
         e.preventDefault();
@@ -27,7 +30,6 @@ const Contact = () => {
         const email   = form.current.user_email?.value || '';
         const message = form.current.message?.value    || '';
 
-        // ── If EmailJS is not configured, fall back to mailto: ────────────
         if (!isEmailJSConfigured()) {
             const subject  = encodeURIComponent(`Portfolio Contact from ${name}`);
             const body     = encodeURIComponent(`${message}\n\n---\nFrom: ${name}\nReply to: ${email}`);
@@ -38,7 +40,6 @@ const Contact = () => {
             return;
         }
 
-        // ── EmailJS send ──────────────────────────────────────────────────
         setStatus('sending');
         emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, form.current, PUBLIC_KEY)
             .then(() => {
@@ -59,10 +60,12 @@ const Contact = () => {
             <div className="container">
 
                 <motion.div
+                    ref={headerRef}
                     className="section-header"
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
+                    initial="hidden"
+                    animate={headerVisible ? "visible" : "hidden"}
+                    variants={revealVariants}
+                    transition={transition}
                 >
                     <h2 className="section-title">Messenger Hawk</h2>
                     <div className="title-underline"></div>
@@ -71,10 +74,11 @@ const Contact = () => {
                 <div className="contact-grid">
 
                     <motion.div
+                        ref={infoRef}
                         className="contact-info"
-                        initial={{ opacity: 0, x: -30 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={infoVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
+                        transition={slowTransition}
                     >
                         <h3>Ready for the next mission?</h3>
                         <p>Send me a message and let&apos;s build something epic together.</p>
@@ -86,7 +90,6 @@ const Contact = () => {
                             </a>
 
                             <div className="social-links">
-                                {/* FIX: target="_blank" (was "_next") + aria-labels added */}
                                 <a
                                     href="https://github.com/borno18"
                                     target="_blank"
@@ -110,14 +113,13 @@ const Contact = () => {
                         </div>
                     </motion.div>
 
-                    {/* FORM PART */}
                     <motion.form
-                        ref={form}
+                        ref={formRef}
                         onSubmit={sendEmail}
                         className="contact-form"
-                        initial={{ opacity: 0, x: 30 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={formVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
+                        transition={slowTransition}
                     >
                         <div className="form-group">
                             <input
@@ -169,13 +171,13 @@ const Contact = () => {
                             )}
                         </button>
 
-                        {/* Inline status toast — replaces browser alert() */}
                         <AnimatePresence>
                             {status === 'success' && (
                                 <motion.div
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 8 }}
+                                    transition={transition}
                                     className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-sm font-medium"
                                 >
                                     <CheckCircle size={16} />
@@ -187,6 +189,7 @@ const Contact = () => {
                                     initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: 8 }}
+                                    transition={transition}
                                     className="flex items-center gap-2 px-4 py-3 rounded-lg bg-red-950/60 border border-red-500/30 text-red-400 text-sm font-medium"
                                 >
                                     <XCircle size={16} />
