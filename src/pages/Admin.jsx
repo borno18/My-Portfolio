@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
     LayoutDashboard, BookOpen, Image, FileText, Lock, LogOut, Plus, 
-    Edit2, Trash2, Save, X, ArrowLeft, RefreshCw, Upload, Link2 
+    Edit2, Trash2, Save, X, ArrowLeft, RefreshCw, Upload, Link2, Eye, EyeOff 
 } from 'lucide-react';
 import { useMotionTransition, revealVariants } from '../lib/motion';
 import './Admin.css';
@@ -38,7 +38,7 @@ const Admin = () => {
     const [photoForm, setPhotoForm] = useState({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0, category: 'Street' });
     const [noteForm, setNoteForm] = useState({ title: '', content: '' });
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
-    const [skillForm, setSkillForm] = useState({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: 0 });
+    const [skillForm, setSkillForm] = useState({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: 0, is_visible: true });
 
     // Cloudinary upload states
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -90,8 +90,8 @@ const Admin = () => {
                 setNotes(data);
             }
 
-            // Load skills (public)
-            const resSkills = await fetch(`${API_BASE}/api/skills`);
+            // Load skills (all â€” admin view)
+            const resSkills = await fetch(`${API_BASE}/api/skills?all=true`, { credentials: 'include' });
             if (resSkills.ok) {
                 const data = await resSkills.json();
                 setSkills(data);
@@ -151,7 +151,7 @@ const Admin = () => {
         setBlogForm({ ...blogForm, title, slug });
     };
 
-    // ─── Image Uploading ───────────────────────────────────────────────────────
+    // â”€â”€â”€ Image Uploading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const handleImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -242,7 +242,7 @@ const Admin = () => {
         }
     };
 
-    // ─── Blog CRUD Operations ──────────────────────────────────────────────────
+    // â”€â”€â”€ Blog CRUD Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const saveBlog = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -298,7 +298,7 @@ const Admin = () => {
         }
     };
 
-    // ─── Photos CRUD Operations ────────────────────────────────────────────────
+    // â”€â”€â”€ Photos CRUD Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const savePhoto = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -359,7 +359,7 @@ const Admin = () => {
         }
     };
 
-    // ─── Notes CRUD Operations ─────────────────────────────────────────────────
+    // â”€â”€â”€ Notes CRUD Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const saveNote = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -415,7 +415,7 @@ const Admin = () => {
         }
     };
 
-    // ─── Skills CRUD Operations ────────────────────────────────────────────────
+    // â”€â”€â”€ Skills CRUD Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const saveSkill = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -439,14 +439,14 @@ const Admin = () => {
                 throw new Error(err.detail || 'Failed to save skill');
             }
 
-            const resSkills = await fetch(`${API_BASE}/api/skills`);
+            const resSkills = await fetch(`${API_BASE}/api/skills?all=true`, { credentials: 'include' });
             const data = await resSkills.json();
             setSkills(data);
 
             setSuccess('Skill saved successfully!');
             setShowCreateForm(false);
             setEditingItem(null);
-            setSkillForm({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: 0 });
+            setSkillForm({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: 0, is_visible: true });
         } catch (err) {
             setError(err.message);
         } finally {
@@ -487,7 +487,24 @@ const Admin = () => {
         }
     };
 
-    // ─── Change Password ───────────────────────────────────────────────────────
+    const toggleSkillVisibility = async (skill) => {
+        const newVisibility = !skill.is_visible;
+        try {
+            const res = await fetch(`${API_BASE}/api/skills/${skill.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_visible: newVisibility }),
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setSkills(skills.map(s => s.id === skill.id ? { ...s, is_visible: newVisibility } : s));
+                setSuccess(`Skill "${skill.name}" is now ${newVisibility ? 'visible' : 'hidden'} on the site.`);
+            }
+        } catch (err) {
+            setError('Failed to update skill visibility');
+        }
+    };
+
     const handlePasswordChange = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -542,7 +559,7 @@ const Admin = () => {
                 </div>
 
                 {!authenticated ? (
-                    /* ── Admin Login Gate ────────────────────────────────────── */
+                    /* â”€â”€ Admin Login Gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
                     <motion.div 
                         className="login-gate max-w-md mx-auto border border-solid border-zinc-800/80 bg-zinc-900/40 rounded-2xl p-8 text-center mt-12 shadow-2xl"
                         initial="hidden"
@@ -577,7 +594,7 @@ const Admin = () => {
                         </form>
                     </motion.div>
                 ) : (
-                    /* ── Admin Dashboard ─────────────────────────────────────── */
+                    /* â”€â”€ Admin Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
                     <div className="dashboard-layout grid grid-cols-1 md:grid-cols-4 gap-8">
                         {/* Sidebar Tabs */}
                         <div className="md:col-span-1 space-y-2">
@@ -615,7 +632,7 @@ const Admin = () => {
                                     activeTab === 'skills' ? 'bg-orange text-black' : 'bg-zinc-900/60 text-zinc-400 border border-solid border-zinc-800/40 hover:text-white'
                                 }`}
                             >
-                                <span className="text-base leading-none">⚔️</span> Skills Arsenal
+                                <span className="text-base leading-none">âš”ï¸</span> Skills Arsenal
                             </button>
                             <button 
                                 onClick={() => { setActiveTab('password'); setShowCreateForm(false); setEditingItem(null); }}
@@ -658,7 +675,7 @@ const Admin = () => {
                                         </button>
                                     </div>
 
-                                    {/* ── Blog Form ────────────────────────────────────────── */}
+                                    {/* â”€â”€ Blog Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'blog' && (
                                         <form onSubmit={saveBlog} className="space-y-4 font-main">
                                             <div>
@@ -759,7 +776,7 @@ const Admin = () => {
                                         </form>
                                     )}
 
-                                    {/* ── Photo Form ───────────────────────────────────────── */}
+                                    {/* â”€â”€ Photo Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'photos' && (
                                         <form onSubmit={savePhoto} className="space-y-4 font-main">
                                             {/* Image Upload Selection */}
@@ -916,7 +933,7 @@ const Admin = () => {
                                         </form>
                                     )}
 
-                                    {/* ── Note Form ────────────────────────────────────────── */}
+                                    {/* â”€â”€ Note Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'notes' && (
                                         <form onSubmit={saveNote} className="space-y-4 font-main">
                                             <div>
@@ -949,7 +966,7 @@ const Admin = () => {
                                         </form>
                                     )}
 
-                                    {/* ── Skill Form ────────────────────────────────────────── */}
+                                    {/* â”€â”€ Skill Form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'skills' && (
                                         <form onSubmit={saveSkill} className="space-y-4 font-main">
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1012,8 +1029,8 @@ const Admin = () => {
                                                         onChange={(e) => setSkillForm({ ...skillForm, status: e.target.value })}
                                                         className="w-full bg-zinc-900 border border-solid border-zinc-800 px-4 py-2.5 rounded-lg text-white font-main"
                                                     >
-                                                        <option value="mastered">✅ Mastered</option>
-                                                        <option value="learning">🔄 Currently Learning</option>
+                                                        <option value="mastered">âœ… Mastered</option>
+                                                        <option value="learning">ðŸ”„ Currently Learning</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -1026,6 +1043,21 @@ const Admin = () => {
                                                         onChange={(e) => setSkillForm({ ...skillForm, display_order: parseInt(e.target.value) || 0 })}
                                                         className="w-full bg-zinc-900 border border-solid border-zinc-800 px-4 py-2.5 rounded-lg text-white font-main"
                                                     />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-3">Visibility</label>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSkillForm({ ...skillForm, is_visible: !skillForm.is_visible })}
+                                                        className={`flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-lg border border-solid transition-all cursor-pointer ${
+                                                            skillForm.is_visible
+                                                                ? 'bg-emerald-900/20 border-emerald-600/30 text-emerald-400 hover:bg-emerald-900/40'
+                                                                : 'bg-zinc-900/60 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+                                                        }`}
+                                                    >
+                                                        {skillForm.is_visible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                                        {skillForm.is_visible ? 'Visible on Site' : 'Hidden from Site'}
+                                                    </button>
                                                 </div>
                                             </div>
                                             <button
@@ -1040,7 +1072,7 @@ const Admin = () => {
                                 </div>
                             ) : (
                                 <div>
-                                    {/* ── TAB CONTENT: BLOG LIST ───────────────────────────── */}
+                                    {/* â”€â”€ TAB CONTENT: BLOG LIST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'blog' && (
                                         <div>
                                             <div className="flex justify-between items-center mb-6">
@@ -1106,7 +1138,7 @@ const Admin = () => {
                                         </div>
                                     )}
 
-                                    {/* ── TAB CONTENT: PHOTOS LIST ─────────────────────────── */}
+                                    {/* â”€â”€ TAB CONTENT: PHOTOS LIST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'photos' && (
                                         <div>
                                             <div className="flex justify-between items-center mb-6">
@@ -1160,7 +1192,7 @@ const Admin = () => {
                                         </div>
                                     )}
 
-                                    {/* ── TAB CONTENT: NOTES LIST ──────────────────────────── */}
+                                    {/* â”€â”€ TAB CONTENT: NOTES LIST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'notes' && (
                                         <div>
                                             <div className="flex justify-between items-center mb-6">
@@ -1206,13 +1238,13 @@ const Admin = () => {
                                         </div>
                                     )}
 
-                                    {/* ── TAB CONTENT: SKILLS LIST ─────────────────────────── */}
+                                    {/* â”€â”€ TAB CONTENT: SKILLS LIST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'skills' && (
                                         <div>
                                             <div className="flex justify-between items-center mb-6">
                                                 <h3 className="text-lg font-bold uppercase tracking-widest text-white">Skills Arsenal</h3>
                                                 <button
-                                                    onClick={() => { setShowCreateForm(true); setSkillForm({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: skills.length + 1 }); }}
+                                                    onClick={() => { setShowCreateForm(true); setSkillForm({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: skills.length + 1, is_visible: true }); }}
                                                     className="bg-orange text-black font-bold uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl cursor-pointer hover:bg-orange/90 inline-flex items-center gap-1.5"
                                                 >
                                                     <Plus size={14} /> Add Skill
@@ -1221,7 +1253,11 @@ const Admin = () => {
 
                                             <div className="space-y-2">
                                                 {skills.map(s => (
-                                                    <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl border border-solid border-zinc-800/60 bg-zinc-900/20 hover:border-zinc-700/60 transition-all">
+                                                    <div key={s.id} className={`flex items-center gap-3 p-3 rounded-xl border border-solid transition-all ${
+                                                            s.is_visible
+                                                                ? 'border-zinc-800/60 bg-zinc-900/20 hover:border-zinc-700/60'
+                                                                : 'border-zinc-800/30 bg-zinc-900/10 opacity-50'
+                                                        }`}>
                                                         {s.icon_key ? (
                                                             <img
                                                                 src={`https://cdn.simpleicons.org/${s.icon_key}`}
@@ -1236,6 +1272,9 @@ const Admin = () => {
                                                         )}
                                                         <span className="text-sm font-semibold text-zinc-200 flex-1">{s.name}</span>
                                                         <span className="text-[10px] text-zinc-500 hidden sm:block">{s.category}</span>
+                                                        {!s.is_visible && (
+                                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-solid text-zinc-500 border-zinc-700 bg-zinc-900/50">Hidden</span>
+                                                        )}
                                                         <button
                                                             onClick={() => toggleSkillStatus(s)}
                                                             title="Toggle mastered/learning"
@@ -1245,7 +1284,18 @@ const Admin = () => {
                                                                     : 'text-orange border-orange/30 bg-orange/10 hover:bg-orange/20'
                                                             }`}
                                                         >
-                                                            {s.status === 'mastered' ? '✅ Mastered' : '🔄 Learning'}
+                                                            {s.status === 'mastered' ? 'âœ… Mastered' : 'ðŸ”„ Learning'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => toggleSkillVisibility(s)}
+                                                            title={s.is_visible ? 'Hide from site' : 'Show on site'}
+                                                            className={`p-1.5 border border-solid rounded-lg transition-colors cursor-pointer ${
+                                                                s.is_visible
+                                                                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-emerald-400 hover:border-emerald-600/40'
+                                                                    : 'bg-zinc-900 border-zinc-700 text-zinc-600 hover:text-zinc-300'
+                                                            }`}
+                                                        >
+                                                            {s.is_visible ? <Eye size={12} /> : <EyeOff size={12} />}
                                                         </button>
                                                         <button
                                                             onClick={() => {
@@ -1256,6 +1306,7 @@ const Admin = () => {
                                                                     icon_key: s.icon_key || '',
                                                                     status: s.status || 'mastered',
                                                                     display_order: s.display_order || 0,
+                                                                    is_visible: s.is_visible !== false,
                                                                 });
                                                             }}
                                                             className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
@@ -1274,7 +1325,7 @@ const Admin = () => {
                                         </div>
                                     )}
 
-                                    {/* ── TAB CONTENT: PASSWORD CHANGE ─────────────────────── */}
+                                    {/* â”€â”€ TAB CONTENT: PASSWORD CHANGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
                                     {activeTab === 'password' && (
                                         <div className="max-w-md">
                                             <h3 className="text-lg font-bold uppercase tracking-widest text-white mb-6">Update Admin Password</h3>

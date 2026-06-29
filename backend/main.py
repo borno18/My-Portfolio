@@ -177,6 +177,7 @@ class SkillCreate(BaseModel):
     icon_key: Optional[str] = None
     status: Optional[str] = 'mastered'  # 'learning' | 'mastered'
     display_order: Optional[int] = 0
+    is_visible: Optional[bool] = True
 
 class SkillUpdate(BaseModel):
     name: Optional[str] = None
@@ -184,6 +185,7 @@ class SkillUpdate(BaseModel):
     icon_key: Optional[str] = None
     status: Optional[str] = None
     display_order: Optional[int] = None
+    is_visible: Optional[bool] = None
 
 class SignatureRequest(BaseModel):
     params: dict
@@ -593,9 +595,12 @@ def delete_note(id: int, db: Session = Depends(get_db), admin_session = Depends(
 # ─── Skills Endpoints ─────────────────────────────────────────────────────────
 
 @app.get("/api/skills")
-def get_skills(db: Session = Depends(get_db)):
-    """Public endpoint – returns all skills ordered by display_order."""
-    skills = db.query(Skill).order_by(Skill.display_order).all()
+def get_skills(db: Session = Depends(get_db), all: Optional[bool] = False):
+    """Public endpoint – returns visible skills by default. Pass ?all=true (admin) to get all."""
+    query = db.query(Skill).order_by(Skill.display_order)
+    if not all:
+        query = query.filter(Skill.is_visible == True)
+    skills = query.all()
     return [
         {
             "id": s.id,
@@ -604,6 +609,7 @@ def get_skills(db: Session = Depends(get_db)):
             "icon_key": s.icon_key,
             "status": s.status,
             "display_order": s.display_order,
+            "is_visible": s.is_visible,
         }
         for s in skills
     ]
@@ -616,6 +622,7 @@ def create_skill(data: SkillCreate, db: Session = Depends(get_db), admin_session
         icon_key=data.icon_key,
         status=data.status,
         display_order=data.display_order,
+        is_visible=data.is_visible if data.is_visible is not None else True,
     )
     db.add(skill)
     db.commit()
@@ -637,6 +644,8 @@ def update_skill(id: int, data: SkillUpdate, db: Session = Depends(get_db), admi
         skill.status = data.status
     if data.display_order is not None:
         skill.display_order = data.display_order
+    if data.is_visible is not None:
+        skill.is_visible = data.is_visible
     db.commit()
     db.refresh(skill)
     return skill

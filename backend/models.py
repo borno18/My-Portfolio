@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Text, DateTime, Date, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, Date, Boolean, func
 from database import Base
 
 class Admin(Base):
@@ -67,4 +67,5 @@ class Skill(Base):
     icon_key = Column(String, nullable=True)  # Simple Icons slug, e.g. 'python', 'react'
     status = Column(String, nullable=False, default='mastered')  # 'learning' | 'mastered'
     display_order = Column(Integer, default=0)
+    is_visible = Column(Boolean, nullable=False, default=True)  # False = hidden from public site
     created_at = Column(DateTime(timezone=True), default=func.now())
