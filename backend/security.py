@@ -73,7 +73,17 @@ def decrypt_note(encrypted_str: str) -> str:
 def generate_cloudinary_signature(params: dict, api_secret: str) -> str:
     import hashlib
     # Exclude standard non-sign parameters
-    params_to_sign = {k: v for k, v in params.items() if k not in ["signature", "file", "api_key"]}
+    params_to_sign = {}
+    for k, v in params.items():
+        if k in ["signature", "file", "api_key"]:
+            continue
+        # Convert float values that are mathematically integers to int first
+        if isinstance(v, float) and v.is_integer():
+            v = int(v)
+        elif isinstance(v, bool):
+            v = str(v).lower()
+        params_to_sign[k] = str(v)
+        
     sorted_params = sorted(params_to_sign.items())
     param_str = "&".join(f"{k}={v}" for k, v in sorted_params)
     to_sign = f"{param_str}{api_secret}"

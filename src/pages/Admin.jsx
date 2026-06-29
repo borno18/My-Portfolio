@@ -183,7 +183,19 @@ const Admin = () => {
                     body: formData
                 });
 
-                if (!uploadRes.ok) throw new Error('Cloudinary upload error');
+                if (!uploadRes.ok) {
+                    const errorText = await uploadRes.text();
+                    let errorMessage = 'Cloudinary upload error';
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        if (errorJson.error && errorJson.error.message) {
+                            errorMessage = `Cloudinary upload error: ${errorJson.error.message}`;
+                        }
+                    } catch (e) {
+                        errorMessage = `Cloudinary upload error: ${errorText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
                 const uploadData = await uploadRes.json();
                 imageUrl = uploadData.secure_url;
             } else {
