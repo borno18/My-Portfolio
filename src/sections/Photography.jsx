@@ -56,7 +56,7 @@ const Photography = () => {
                         thumbnail: p.thumbnail_url || p.image_url,
                         title: p.story ? p.story.split('\n')[0] : 'Untitled',
                         story: p.story || '',
-                        category: p.category || (p.camera ? 'Fujifilm' : 'Street'),
+                        category: p.category || 'Street',
                         camera: p.camera || 'FUJIFILM',
                         lens: p.lens || '',
                         settings: p.settings || '',

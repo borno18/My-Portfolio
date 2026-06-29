@@ -34,13 +34,14 @@ const Admin = () => {
 
     // Form inputs
     const [blogForm, setBlogForm] = useState({ title: '', slug: '', content: '', cover_image_url: '', status: 'draft' });
-    const [photoForm, setPhotoForm] = useState({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0 });
+    const [photoForm, setPhotoForm] = useState({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0, category: 'Street' });
     const [noteForm, setNoteForm] = useState({ title: '', content: '' });
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
 
     // Cloudinary upload states
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadMode, setUploadMode] = useState('url'); // 'url' | 'file'
+    const [showCustomCategoryInput, setShowCustomCategoryInput] = useState(false);
 
     useEffect(() => {
         const checkSession = async () => {
@@ -324,7 +325,8 @@ const Admin = () => {
             setSuccess('Photo saved successfully!');
             setShowCreateForm(false);
             setEditingItem(null);
-            setPhotoForm({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0 });
+            setPhotoForm({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0, category: 'Street' });
+            setShowCustomCategoryInput(false);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -779,6 +781,42 @@ const Admin = () => {
                                                     />
                                                 </div>
                                             </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Photo Type / Category</label>
+                                                    <select
+                                                        value={showCustomCategoryInput ? 'custom' : photoForm.category || 'Street'}
+                                                        onChange={(e) => {
+                                                            if (e.target.value === 'custom') {
+                                                                setShowCustomCategoryInput(true);
+                                                                setPhotoForm({ ...photoForm, category: '' });
+                                                            } else {
+                                                                setShowCustomCategoryInput(false);
+                                                                setPhotoForm({ ...photoForm, category: e.target.value });
+                                                            }
+                                                        }}
+                                                        className="w-full bg-zinc-900 border border-solid border-zinc-800 px-4 py-2.5 rounded-lg text-white font-main"
+                                                    >
+                                                        {Array.from(new Set(['Street', 'Festival', 'Architecture', 'Food', ...photos.map(p => p.category).filter(Boolean)])).map(cat => (
+                                                            <option key={cat} value={cat}>{cat}</option>
+                                                        ))}
+                                                        <option value="custom">+ Add Custom...</option>
+                                                    </select>
+                                                </div>
+                                                {showCustomCategoryInput && (
+                                                    <div>
+                                                        <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Custom Type Name</label>
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="e.g. Portrait, Nature..."
+                                                            value={photoForm.category}
+                                                            onChange={(e) => setPhotoForm({ ...photoForm, category: e.target.value })}
+                                                            className="w-full bg-zinc-900 border border-solid border-zinc-800 px-4 py-2.5 rounded-lg text-white font-main"
+                                                            required
+                                                        />
+                                                    </div>
+                                                )}
+                                            </div>
                                             <button 
                                                 type="submit" 
                                                 disabled={loading}
@@ -896,7 +934,7 @@ const Admin = () => {
                                             <div className="flex justify-between items-center mb-6">
                                                 <h3 className="text-lg font-bold uppercase tracking-widest text-white">Photo Catalog</h3>
                                                 <button 
-                                                    onClick={() => { setShowCreateForm(true); setPhotoForm({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0 }); }}
+                                                    onClick={() => { setShowCreateForm(true); setPhotoForm({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0, category: 'Street' }); setShowCustomCategoryInput(false); }}
                                                     className="bg-orange text-black font-bold uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl cursor-pointer hover:bg-orange/90 inline-flex items-center gap-1.5"
                                                 >
                                                     <Plus size={14} /> Add Frame
@@ -921,8 +959,10 @@ const Admin = () => {
                                                                             lens: p.lens || '',
                                                                             settings: p.settings || '',
                                                                             taken_at: p.taken_at || '',
-                                                                            display_order: p.display_order || 0
+                                                                            display_order: p.display_order || 0,
+                                                                            category: p.category || 'Street'
                                                                         });
+                                                                        setShowCustomCategoryInput(false);
                                                                     }}
                                                                     className="p-1 bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
                                                                 >

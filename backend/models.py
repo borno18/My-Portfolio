@@ -42,6 +42,7 @@ class Photo(Base):
     settings = Column(String, nullable=True)
     taken_at = Column(Date, nullable=True)
     display_order = Column(Integer, default=0)
+    category = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), default=func.now())
 
 class Note(Base):

@@ -36,6 +36,14 @@ async def lifespan(app: FastAPI):
     
     db = SessionLocal()
     try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(engine)
+        columns = [c['name'] for c in inspector.get_columns('photos')]
+        if 'category' not in columns:
+            db.execute(text("ALTER TABLE photos ADD COLUMN category VARCHAR"))
+            db.commit()
+            print("Added column 'category' to 'photos' table.")
+
         admin_count = db.query(Admin).count()
         if admin_count == 0:
             initial_password = os.getenv("ADMIN_INITIAL_PASSWORD", "admin123")
@@ -45,7 +53,7 @@ async def lifespan(app: FastAPI):
             db.commit()
             print("Database tables created and Admin user seeded successfully.")
     except Exception as e:
-        print(f"Error seeding database: {e}")
+        print(f"Error seeding database or running migrations: {e}")
     finally:
         db.close()
     yield
@@ -106,6 +114,7 @@ class PhotoCreate(BaseModel):
     settings: Optional[str] = None
     taken_at: Optional[datetime.date] = None
     display_order: Optional[int] = 0
+    category: Optional[str] = 'Street'
 
 class PhotoUpdate(BaseModel):
     image_url: Optional[str] = None
@@ -116,6 +125,7 @@ class PhotoUpdate(BaseModel):
     settings: Optional[str] = None
     taken_at: Optional[datetime.date] = None
     display_order: Optional[int] = None
+    category: Optional[str] = None
 
 class NoteCreate(BaseModel):
     title: str
@@ -405,7 +415,8 @@ def create_photo(data: PhotoCreate, db: Session = Depends(get_db), admin_session
         lens=data.lens,
         settings=data.settings,
         taken_at=data.taken_at,
-        display_order=data.display_order
+        display_order=data.display_order,
+        category=data.category
     )
     db.add(photo)
     db.commit()
@@ -437,6 +448,8 @@ def update_photo(id: int, data: PhotoUpdate, db: Session = Depends(get_db), admi
         photo.taken_at = data.taken_at
     if data.display_order is not None:
         photo.display_order = data.display_order
+    if data.category is not None:
+        photo.category = data.category
         
     db.commit()
     db.refresh(photo)
