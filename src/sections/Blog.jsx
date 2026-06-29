@@ -20,7 +20,7 @@ const Blog = () => {
                 const res = await fetch(`${API_BASE}/api/blog`);
                 if (!res.ok) throw new Error('Failed to fetch posts');
                 const data = await res.json();
-                const published = data.filter(p => p.status === 'published');
+                const published = data.filter(p => !p.status || p.status === 'published');
                 setPosts(published.slice(0, 3));
             } catch (err) {
                 console.error('Error fetching landing page blogs:', err);

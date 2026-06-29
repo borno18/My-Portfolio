@@ -224,6 +224,7 @@ def list_blog_posts(db: Session = Depends(get_db)):
             "slug": p.slug,
             "excerpt": p.content[:150] + "..." if len(p.content) > 150 else p.content,
             "cover_image_url": p.cover_image_url,
+            "status": p.status,
             "published_at": p.published_at
         }
         for p in posts
