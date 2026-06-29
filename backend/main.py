@@ -44,6 +44,13 @@ async def lifespan(app: FastAPI):
             db.commit()
             print("Added column 'category' to 'photos' table.")
 
+        # Migrate skills table to add is_visible column if missing
+        columns_skills = [c['name'] for c in inspector.get_columns('skills')]
+        if 'is_visible' not in columns_skills:
+            db.execute(text("ALTER TABLE skills ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT true"))
+            db.commit()
+            print("Added column 'is_visible' to 'skills' table.")
+
         admin_count = db.query(Admin).count()
         if admin_count == 0:
             initial_password = os.getenv("ADMIN_INITIAL_PASSWORD", "admin123")

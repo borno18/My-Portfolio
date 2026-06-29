@@ -1,5 +1,14 @@
 [
   {
+    "name": "My-Portfolio",
+    "description": "My portfolio",
+    "html_url": "https://github.com/borno18/My-Portfolio",
+    "stargazers_count": 0,
+    "forks_count": 0,
+    "language": "JavaScript",
+    "updated_at": "2026-06-29T17:14:58Z"
+  },
+  {
     "name": "CSE_FEST_Preli",
     "description": "No description provided.",
     "html_url": "https://github.com/borno18/CSE_FEST_Preli",
@@ -16,15 +25,6 @@
     "forks_count": 0,
     "language": "Python",
     "updated_at": "2026-06-25T16:54:12Z"
-  },
-  {
-    "name": "My-Portfolio",
-    "description": "My portfolio",
-    "html_url": "https://github.com/borno18/My-Portfolio",
-    "stargazers_count": 0,
-    "forks_count": 0,
-    "language": "JavaScript",
-    "updated_at": "2026-06-10T21:30:49Z"
   },
   {
     "name": "SWE-06132124-Project",
