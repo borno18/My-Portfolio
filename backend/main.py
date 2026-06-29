@@ -31,6 +31,15 @@ limiter = Limiter(key_func=get_remote_address)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Warning for default key fallbacks
+    from security import JWT_SECRET
+    if JWT_SECRET == "super-secret-key-for-jwt-signing-000000000000000000000000":
+        print("WARNING: Using insecure default JWT_SECRET! Please configure the JWT_SECRET environment variable in production.")
+    
+    notes_key = os.getenv("NOTES_ENCRYPTION_KEY", "default-32-byte-key-for-dev-only-0000")
+    if notes_key == "default-32-byte-key-for-dev-only-0000":
+        print("WARNING: Using insecure default NOTES_ENCRYPTION_KEY! Please configure the NOTES_ENCRYPTION_KEY environment variable in production.")
+
     # Startup: create tables and seed admin user
     Base.metadata.create_all(bind=engine)
     
@@ -120,7 +129,7 @@ origins = [origin.strip().rstrip("/") for origin in raw_origins.split(",") if or
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://(my-portfolio-.*-joydip-majumdar-bornos-projects|joydipmajumdar(-.*)?)\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -268,7 +277,8 @@ def check_auth(request: Request):
     return {"authenticated": True}
 
 @app.patch("/api/auth/password")
-def change_password(data: PasswordChangeRequest, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+@limiter.limit("5/minute")
+def change_password(request: Request, data: PasswordChangeRequest, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
     admin = db.query(Admin).first()
     if not admin or not verify_password(data.currentPassword, admin.password_hash):
         raise HTTPException(
@@ -419,8 +429,9 @@ def upload_file(file: UploadFile = File(...), admin_session = Depends(get_curren
             detail=f"MIME type '{file.content_type}' is not supported. Allowed formats: JPEG, PNG, GIF, WEBP"
         )
         
-    ext = os.path.splitext(file.filename)[1]
-    if not ext:
+    ext = os.path.splitext(file.filename)[1].lower()
+    allowed_exts = [".jpg", ".jpeg", ".png", ".gif", ".webp"]
+    if ext not in allowed_exts:
         ext_map = {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}
         ext = ext_map.get(file.content_type.lower(), ".jpg")
         
