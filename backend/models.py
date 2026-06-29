@@ -57,3 +57,14 @@ class Note(Base):
         default=func.now(), 
         onupdate=func.now()
     )
+
+class Skill(Base):
+    __tablename__ = 'skills'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    category = Column(String, nullable=False, default='General')
+    icon_key = Column(String, nullable=True)  # Simple Icons slug, e.g. 'python', 'react'
+    status = Column(String, nullable=False, default='mastered')  # 'learning' | 'mastered'
+    display_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=func.now())

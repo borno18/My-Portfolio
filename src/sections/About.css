@@ -1,3 +1,4 @@
+/* ── Section Base ─────────────────────────────────────────────────────────── */
 .about {
     background: var(--color-gray);
     position: relative;
@@ -22,132 +23,220 @@
     box-shadow: 0 0 10px var(--color-glow);
 }
 
-.about-grid {
-    display: grid;
-    grid-template-columns: 1fr 1.5fr;
-    gap: 4rem;
-    align-items: center;
-    margin-bottom: 5rem;
-}
-
-.about-image-card {
-    position: relative;
-    aspect-ratio: 1/1;
-    background: #222;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.placeholder-icon {
-    opacity: 0.1;
-    color: var(--color-orange);
-}
-
-.profile-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 12px;
-}
-
-.image-overlay-border {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    right: -10px;
-    bottom: -10px;
-    border: 2px solid var(--color-orange);
-    border-radius: 12px;
-    z-index: -1;
-}
-
-.about-content h3 {
-    font-size: 1.8rem;
-    margin-bottom: 1.5rem;
-    color: var(--color-orange);
+/* ── Minimalist Bio ───────────────────────────────────────────────────────── */
+.about-bio {
+    max-width: 680px;
+    margin: 0 auto 5rem;
+    text-align: center;
 }
 
 .about-text {
     font-size: 1.1rem;
     color: #AAA;
+    line-height: 1.9;
     margin-bottom: 2rem;
-    line-height: 1.8;
 }
 
-.about-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+.about-name {
+    color: var(--color-orange);
+    font-weight: 700;
 }
 
-.stat-item {
+.bio-divider {
     display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.bio-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--color-orange);
+    opacity: 0.45;
+}
+
+/* ── Skills Section ───────────────────────────────────────────────────────── */
+.skills-section {
+    width: 100%;
+}
+
+.skills-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 3.5rem 0 2rem;
     gap: 1rem;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 1rem;
-    border-radius: 8px;
 }
 
-.stat-item h4 {
-    font-size: 1rem;
-    margin-bottom: 2px;
-}
-
-.stat-item p {
-    font-size: 0.85rem;
-    color: #777;
-}
-
-.skills-container {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2rem;
-}
-
-.skill-card {
-    background: rgba(10, 10, 10, 0.5);
-    padding: 2rem;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 152, 0, 0.1);
-    transition: all 0.3s ease;
-}
-
-.skill-card:hover {
-    border-color: var(--color-orange);
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-}
-
-.skill-card h4 {
-    margin-bottom: 1.5rem;
-    font-size: 1.2rem;
+.skills-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: var(--color-orange);
 }
 
-.skill-tags {
+.skills-legend {
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.legend-icon.mastered-icon {
+    color: #22c55e;
+}
+
+.legend-pulse {
+    flex-shrink: 0;
+}
+
+/* ── Skills Loading ───────────────────────────────────────────────────────── */
+.skills-loading {
+    display: flex;
+    justify-content: center;
+    padding: 3rem 0;
+}
+
+/* ── Skill Categories ─────────────────────────────────────────────────────── */
+.skills-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.skill-category-block {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.skill-category-name {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #555;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.skill-chips-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.8rem;
+    gap: 0.65rem;
 }
 
-.skill-tag {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 0.4rem 0.8rem;
+/* ── Skill Chip ───────────────────────────────────────────────────────────── */
+.skill-chip {
+    cursor: default;
+}
+
+.skill-chip-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px 6px 8px;
+    border-radius: 999px;
+    background: rgba(10, 10, 10, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+}
+
+.skill-chip:hover .skill-chip-inner {
+    border-color: rgba(255, 152, 0, 0.35);
+    background: rgba(255, 152, 0, 0.06);
+    box-shadow: 0 2px 16px rgba(255, 152, 0, 0.08);
+}
+
+.skill-icon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.skill-icon-fallback {
+    width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 152, 0, 0.12);
+    color: var(--color-orange);
+    font-size: 0.65rem;
+    font-weight: 800;
     border-radius: 4px;
-    font-size: 0.85rem;
-    color: #CCC;
+    flex-shrink: 0;
 }
 
-@media (max-width: 968px) {
-    .about-grid {
-        grid-template-columns: 1fr;
-        gap: 3rem;
+.skill-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #ccc;
+    white-space: nowrap;
+    font-family: var(--font-main, inherit);
+}
+
+/* ── Status Indicators ────────────────────────────────────────────────────── */
+.skill-status-dot {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.skill-status-dot.mastered {
+    color: #22c55e;
+}
+
+.skill-status-dot.learning {
+    color: var(--color-orange);
+}
+
+/* Pulsing dot for "learning" status */
+.learning-pulse {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-orange);
+    animation: learningPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes learningPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .section-title {
+        font-size: 2rem;
     }
 
-    .skills-container {
-        grid-template-columns: 1fr;
+    .about-bio {
+        max-width: 100%;
+    }
+
+    .about-text {
+        font-size: 1rem;
+    }
+
+    .skills-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
     }
 }

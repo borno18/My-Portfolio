@@ -1,50 +1,126 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Target, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import ShinobiStats from '../components/ShinobiStats';
 import { useSharedReveal, useMotionTransition, revealVariants } from '../lib/motion';
 import './About.css';
-import profileImg from '../assets/IMG_8750.jpg';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Brand colors for common icon_keys
+const ICON_BRAND_COLORS = {
+    python: '3776AB',
+    pytorch: 'EE4C2C',
+    tensorflow: 'FF6F00',
+    scikitlearn: 'F7931E',
+    numpy: '4DABCF',
+    pandas: '150458',
+    c: 'A8B9CC',
+    cplusplus: '00599C',
+    java: 'ED8B00',
+    html5: 'E34F26',
+    css3: '1572B6',
+    javascript: 'F7DF1E',
+    react: '61DAFB',
+    fastapi: '009688',
+    matplotlib: '11557C',
+    jupyter: 'F37626',
+    kaggle: '20BEFF',
+    git: 'F05032',
+    github: 'aaaaaa',
+    visualstudiocode: '007ACC',
+    vercel: 'aaaaaa',
+    linux: 'FCC624',
+    docker: '2496ED',
+    postgresql: '336791',
+    mongodb: '47A248',
+    nodejs: '339933',
+    typescript: '3178C6',
+    nextdotjs: 'aaaaaa',
+    tailwindcss: '06B6D4',
+};
+
+const getIconColor = (icon_key) => ICON_BRAND_COLORS[icon_key] || '888888';
+
+const SkillCard = ({ skill }) => {
+    const isMastered = skill.status === 'mastered';
+    const iconColor = getIconColor(skill.icon_key);
+    const iconUrl = skill.icon_key
+        ? `https://cdn.simpleicons.org/${skill.icon_key}/${iconColor}`
+        : null;
+
+    return (
+        <motion.div
+            className="skill-chip"
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.35 }}
+            whileHover={{ scale: 1.03 }}
+        >
+            <div className="skill-chip-inner">
+                {iconUrl ? (
+                    <img
+                        src={iconUrl}
+                        alt={skill.name}
+                        className="skill-icon"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                ) : (
+                    <span className="skill-icon-fallback">{skill.name[0]}</span>
+                )}
+                <span className="skill-name">{skill.name}</span>
+                <span
+                    className={`skill-status-dot ${isMastered ? 'mastered' : 'learning'}`}
+                    title={isMastered ? 'Mastered' : 'Currently Learning'}
+                >
+                    {isMastered ? (
+                        <CheckCircle2 size={11} />
+                    ) : (
+                        <span className="learning-pulse" />
+                    )}
+                </span>
+            </div>
+        </motion.div>
+    );
+};
 
 const About = () => {
     const transition = useMotionTransition('standard');
     const slowTransition = useMotionTransition('slow');
 
-    // Shared reveal hooks
     const [headerRef, headerVisible] = useSharedReveal(true);
-    const [imageRef, imageVisible] = useSharedReveal(true);
-    const [contentRef, contentVisible] = useSharedReveal(true);
+    const [bioRef, bioVisible] = useSharedReveal(true);
 
-    const skills = [
-        {
-            name: 'Machine Learning',
-            items: ['Python', 'PyTorch', 'TensorFlow', 'scikit-learn', 'NumPy', 'Pandas']
-        },
-        {
-            name: 'Programming',
-            items: ['C', 'C++', 'Java', 'Python']
-        },
-        {
-            name: 'Data Science',
-            items: ['NumPy', 'Pandas', 'Matplotlib', 'Jupyter Notebook', 'Kaggle']
-        },
-        {
-            name: 'Web Development',
-            items: ['HTML', 'CSS', 'JavaScript', 'React', 'FastAPI']
-        },
-        {
-            name: 'Algorithms & CS',
-            items: ['Data Structures', 'Algorithms (C++)', 'Dynamic Programming', 'Graph Theory']
-        },
-        {
-            name: 'Tools & Platforms',
-            items: ['Git', 'GitHub', 'VS Code', 'Vercel', 'Linux']
-        }
+    const [skills, setSkills] = useState([]);
+    const [skillsLoading, setSkillsLoading] = useState(true);
+
+    useEffect(() => {
+        fetch(`${API_BASE}/api/skills`)
+            .then(res => res.ok ? res.json() : [])
+            .then(data => setSkills(data))
+            .catch(() => setSkills([]))
+            .finally(() => setSkillsLoading(false));
+    }, []);
+
+    // Group skills by category, preserving display_order
+    const grouped = skills.reduce((acc, skill) => {
+        const cat = skill.category || 'General';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(skill);
+        return acc;
+    }, {});
+
+    const categoryOrder = ['Machine Learning', 'Programming', 'Web Development', 'Data Science', 'Tools & Platforms'];
+    const sortedCategories = [
+        ...categoryOrder.filter(c => grouped[c]),
+        ...Object.keys(grouped).filter(c => !categoryOrder.includes(c)),
     ];
 
     return (
         <section id="about" className="about">
             <div className="container">
+                {/* ── Header ─────────────────────────────────────────── */}
                 <motion.div
                     ref={headerRef}
                     className="section-header"
@@ -57,90 +133,81 @@ const About = () => {
                     <div className="title-underline"></div>
                 </motion.div>
 
-                <div className="about-grid">
-                    <motion.div
-                        ref={imageRef}
-                        className="about-image-card"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={imageVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                        transition={slowTransition}
-                    >
-                        <div className="image-placeholder">
-                            <img src={profileImg} alt="Profile" className="profile-image" />
-                        </div>
-                        <div className="image-overlay-border"></div>
-                    </motion.div>
+                {/* ── Minimalist Bio ──────────────────────────────────── */}
+                <motion.div
+                    ref={bioRef}
+                    className="about-bio"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={bioVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+                    transition={slowTransition}
+                >
+                    <p className="about-text">
+                        Hello, since you have come here, it's either to know me or to know my work.
+                        My name is <strong className="about-name">Joydip Majumdar</strong>.
+                        I'm an aspiring software developer and problem solver.
+                        I love to cook, read, watch movies, and play video games.
+                        I'm currently learning how to build software and systems.
+                        This website has my blog posts, photos, projects, and contact information.
+                        Hopefully, I don't disappoint you.
+                    </p>
+                    <div className="bio-divider">
+                        <span className="bio-dot" />
+                        <span className="bio-dot" />
+                        <span className="bio-dot" />
+                    </div>
+                </motion.div>
 
-                    <motion.div
-                        ref={contentRef}
-                        className="about-content"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={contentVisible ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-                        transition={slowTransition}
-                    >
-                        <h3>Software Developer &amp; ML Enthusiast</h3>
-
-                        <p className="about-text">
-                            Hello, since you have come here, it's either to know me or to know my work. 
-                            My name is Joydip Majumdar. 
-                            I'm an aspiring software developer and problem solver. 
-                            I love to cook, read, watch movies, and play video games.
-                            I'm currently learning how to build software and systems. 
-                            This website has my blog posts, photos, projects, and contact information. 
-                            Hopefully, I don't disappoint you.
-                        </p>
-
-                        <div className="about-stats">
-                            <div className="stat-item">
-                                <Target size={24} color="var(--color-orange)" />
-                                <div>
-                                    <h4>Goal</h4>
-                                    <p>Become a skilled software engineer & builder</p>
-                                </div>
-                            </div>
-                            <div className="stat-item">
-                                <ShieldCheck size={24} color="var(--color-orange)" />
-                                <div>
-                                    <h4>Focus</h4>
-                                    <p>Programming, DSA & Web Development</p>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-
-                <div id="skills" className="w-full">
+                {/* ── Skills Section ─────────────────────────────────── */}
+                <div id="skills" className="skills-section">
                     <ShinobiStats />
 
-                    <div className="skills-container">
-                        {skills.map((skillGroup, idx) => {
-                            // Unique reveal hook for each card to prevent sync triggers
-                            const [cardRef, cardVisible] = useSharedReveal(true);
-                            return (
-                                <motion.div
-                                    key={skillGroup.name}
-                                    ref={cardRef}
-                                    className="skill-card"
-                                    initial="hidden"
-                                    animate={cardVisible ? "visible" : "hidden"}
-                                    variants={revealVariants}
-                                    transition={{ ...transition, delay: idx * 0.05 }}
-                                >
-                                    <h4>{skillGroup.name}</h4>
-                                    <div className="skill-tags">
-                                        {skillGroup.items.map(skill => (
-                                            <span 
-                                                key={skill} 
-                                                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold font-main bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900/80 transition-all duration-300 ease-in-out cursor-default shadow-sm"
-                                            >
-                                                {skill}
-                                            </span>
+                    <motion.div
+                        className="skills-header"
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        variants={revealVariants}
+                        transition={transition}
+                    >
+                        <h3 className="skills-title">Arsenal</h3>
+                        <div className="skills-legend">
+                            <span className="legend-item">
+                                <CheckCircle2 size={11} className="legend-icon mastered-icon" />
+                                <span>Mastered</span>
+                            </span>
+                            <span className="legend-item">
+                                <span className="learning-pulse legend-pulse" />
+                                <span>Learning</span>
+                            </span>
+                        </div>
+                    </motion.div>
+
+                    {skillsLoading ? (
+                        <div className="skills-loading">
+                            <Loader2 className="animate-spin text-orange" size={24} />
+                        </div>
+                    ) : (
+                        <div className="skills-categories">
+                            {sortedCategories.map((category) => (
+                                <div key={category} className="skill-category-block">
+                                    <motion.h4
+                                        className="skill-category-name"
+                                        initial={{ opacity: 0, x: -10 }}
+                                        whileInView={{ opacity: 1, x: 0 }}
+                                        viewport={{ once: true }}
+                                        transition={{ duration: 0.3 }}
+                                    >
+                                        {category}
+                                    </motion.h4>
+                                    <div className="skill-chips-row">
+                                        {grouped[category].map(skill => (
+                                            <SkillCard key={skill.id} skill={skill} />
                                         ))}
                                     </div>
-                                </motion.div>
-                            );
-                        })}
-                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </section>

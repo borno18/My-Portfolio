@@ -17,7 +17,7 @@ const Admin = () => {
     const [authenticated, setAuthenticated] = useState(false);
     const [password, setPassword] = useState('');
     const [authChecking, setAuthChecking] = useState(true);
-    const [activeTab, setActiveTab] = useState('blog'); // 'blog' | 'photos' | 'notes' | 'password'
+    const [activeTab, setActiveTab] = useState('blog'); // 'blog' | 'photos' | 'notes' | 'skills' | 'password'
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -27,6 +27,7 @@ const Admin = () => {
     const [blogs, setBlogs] = useState([]);
     const [photos, setPhotos] = useState([]);
     const [notes, setNotes] = useState([]);
+    const [skills, setSkills] = useState([]);
 
     // Editing States
     const [editingItem, setEditingItem] = useState(null); // { type: 'blog'|'photo'|'note', data: ... } or null
@@ -37,6 +38,7 @@ const Admin = () => {
     const [photoForm, setPhotoForm] = useState({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0, category: 'Street' });
     const [noteForm, setNoteForm] = useState({ title: '', content: '' });
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
+    const [skillForm, setSkillForm] = useState({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: 0 });
 
     // Cloudinary upload states
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -86,6 +88,13 @@ const Admin = () => {
             if (resNotes.ok) {
                 const data = await resNotes.json();
                 setNotes(data);
+            }
+
+            // Load skills (public)
+            const resSkills = await fetch(`${API_BASE}/api/skills`);
+            if (resSkills.ok) {
+                const data = await resSkills.json();
+                setSkills(data);
             }
         } catch (err) {
             console.error('Error fetching admin dashboard data:', err);
@@ -406,6 +415,78 @@ const Admin = () => {
         }
     };
 
+    // ─── Skills CRUD Operations ────────────────────────────────────────────────
+    const saveSkill = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            const isEditing = editingItem && editingItem.type === 'skill';
+            const url = isEditing
+                ? `${API_BASE}/api/skills/${editingItem.data.id}`
+                : `${API_BASE}/api/skills`;
+            const method = isEditing ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...skillForm, display_order: parseInt(skillForm.display_order) || 0 }),
+                credentials: 'include'
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to save skill');
+            }
+
+            const resSkills = await fetch(`${API_BASE}/api/skills`);
+            const data = await resSkills.json();
+            setSkills(data);
+
+            setSuccess('Skill saved successfully!');
+            setShowCreateForm(false);
+            setEditingItem(null);
+            setSkillForm({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: 0 });
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const deleteSkill = async (id) => {
+        if (!confirm('Are you sure you want to delete this skill?')) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/skills/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setSkills(skills.filter(s => s.id !== id));
+                setSuccess('Skill deleted successfully.');
+            }
+        } catch (err) {
+            setError('Failed to delete skill');
+        }
+    };
+
+    const toggleSkillStatus = async (skill) => {
+        const newStatus = skill.status === 'mastered' ? 'learning' : 'mastered';
+        try {
+            const res = await fetch(`${API_BASE}/api/skills/${skill.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setSkills(skills.map(s => s.id === skill.id ? { ...s, status: newStatus } : s));
+            }
+        } catch (err) {
+            setError('Failed to update skill status');
+        }
+    };
+
     // ─── Change Password ───────────────────────────────────────────────────────
     const handlePasswordChange = async (e) => {
         e.preventDefault();
@@ -527,6 +608,14 @@ const Admin = () => {
                                 }`}
                             >
                                 <FileText size={16} /> Secret Notes
+                            </button>
+                            <button 
+                                onClick={() => { setActiveTab('skills'); setShowCreateForm(false); setEditingItem(null); }}
+                                className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === 'skills' ? 'bg-orange text-black' : 'bg-zinc-900/60 text-zinc-400 border border-solid border-zinc-800/40 hover:text-white'
+                                }`}
+                            >
+                                <span className="text-base leading-none">⚔️</span> Skills Arsenal
                             </button>
                             <button 
                                 onClick={() => { setActiveTab('password'); setShowCreateForm(false); setEditingItem(null); }}
@@ -859,6 +948,95 @@ const Admin = () => {
                                             </button>
                                         </form>
                                     )}
+
+                                    {/* ── Skill Form ────────────────────────────────────────── */}
+                                    {activeTab === 'skills' && (
+                                        <form onSubmit={saveSkill} className="space-y-4 font-main">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Skill Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={skillForm.name}
+                                                        onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })}
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white font-main"
+                                                        placeholder="e.g. Python"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Category</label>
+                                                    <input
+                                                        type="text"
+                                                        value={skillForm.category}
+                                                        onChange={(e) => setSkillForm({ ...skillForm, category: e.target.value })}
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white font-main"
+                                                        placeholder="e.g. Machine Learning"
+                                                        list="skill-categories"
+                                                    />
+                                                    <datalist id="skill-categories">
+                                                        {Array.from(new Set(skills.map(s => s.category).filter(Boolean))).map(c => (
+                                                            <option key={c} value={c} />
+                                                        ))}
+                                                    </datalist>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">
+                                                        Icon Key <span className="normal-case text-zinc-600">(Simple Icons slug, e.g. <code className="text-orange/80">python</code>, <code className="text-orange/80">react</code>)</span>
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={skillForm.icon_key}
+                                                        onChange={(e) => setSkillForm({ ...skillForm, icon_key: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white font-main"
+                                                        placeholder="e.g. python"
+                                                    />
+                                                    {skillForm.icon_key && (
+                                                        <div className="mt-2 flex items-center gap-2">
+                                                            <img
+                                                                src={`https://cdn.simpleicons.org/${skillForm.icon_key}`}
+                                                                alt="preview"
+                                                                className="w-5 h-5 object-contain"
+                                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                                            />
+                                                            <span className="text-[11px] text-zinc-600">Logo preview</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Status</label>
+                                                    <select
+                                                        value={skillForm.status}
+                                                        onChange={(e) => setSkillForm({ ...skillForm, status: e.target.value })}
+                                                        className="w-full bg-zinc-900 border border-solid border-zinc-800 px-4 py-2.5 rounded-lg text-white font-main"
+                                                    >
+                                                        <option value="mastered">✅ Mastered</option>
+                                                        <option value="learning">🔄 Currently Learning</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Display Order</label>
+                                                    <input
+                                                        type="number"
+                                                        value={skillForm.display_order}
+                                                        onChange={(e) => setSkillForm({ ...skillForm, display_order: parseInt(e.target.value) || 0 })}
+                                                        className="w-full bg-zinc-900 border border-solid border-zinc-800 px-4 py-2.5 rounded-lg text-white font-main"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={loading}
+                                                className="bg-orange text-black font-bold uppercase tracking-wider text-xs px-6 py-3 rounded-lg cursor-pointer hover:bg-orange/90 inline-flex items-center gap-2"
+                                            >
+                                                <Save size={14} /> Save Skill
+                                            </button>
+                                        </form>
+                                    )}
                                 </div>
                             ) : (
                                 <div>
@@ -1022,6 +1200,74 @@ const Admin = () => {
                                                                 <Trash2 size={13} />
                                                             </button>
                                                         </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* ── TAB CONTENT: SKILLS LIST ─────────────────────────── */}
+                                    {activeTab === 'skills' && (
+                                        <div>
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h3 className="text-lg font-bold uppercase tracking-widest text-white">Skills Arsenal</h3>
+                                                <button
+                                                    onClick={() => { setShowCreateForm(true); setSkillForm({ name: '', category: 'Machine Learning', icon_key: '', status: 'mastered', display_order: skills.length + 1 }); }}
+                                                    className="bg-orange text-black font-bold uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl cursor-pointer hover:bg-orange/90 inline-flex items-center gap-1.5"
+                                                >
+                                                    <Plus size={14} /> Add Skill
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                {skills.map(s => (
+                                                    <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl border border-solid border-zinc-800/60 bg-zinc-900/20 hover:border-zinc-700/60 transition-all">
+                                                        {s.icon_key ? (
+                                                            <img
+                                                                src={`https://cdn.simpleicons.org/${s.icon_key}`}
+                                                                alt={s.name}
+                                                                className="w-5 h-5 object-contain flex-shrink-0"
+                                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                                            />
+                                                        ) : (
+                                                            <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center bg-orange/10 text-orange text-xs font-bold rounded">
+                                                                {s.name[0]}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-sm font-semibold text-zinc-200 flex-1">{s.name}</span>
+                                                        <span className="text-[10px] text-zinc-500 hidden sm:block">{s.category}</span>
+                                                        <button
+                                                            onClick={() => toggleSkillStatus(s)}
+                                                            title="Toggle mastered/learning"
+                                                            className={`text-[10px] font-bold px-2.5 py-1 rounded-full border border-solid cursor-pointer transition-all ${
+                                                                s.status === 'mastered'
+                                                                    ? 'text-emerald-400 border-emerald-600/30 bg-emerald-900/20 hover:bg-emerald-900/40'
+                                                                    : 'text-orange border-orange/30 bg-orange/10 hover:bg-orange/20'
+                                                            }`}
+                                                        >
+                                                            {s.status === 'mastered' ? '✅ Mastered' : '🔄 Learning'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setEditingItem({ type: 'skill', data: s });
+                                                                setSkillForm({
+                                                                    name: s.name,
+                                                                    category: s.category || '',
+                                                                    icon_key: s.icon_key || '',
+                                                                    status: s.status || 'mastered',
+                                                                    display_order: s.display_order || 0,
+                                                                });
+                                                            }}
+                                                            className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                                        >
+                                                            <Edit2 size={12} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => deleteSkill(s.id)}
+                                                            className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-500 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
                                                     </div>
                                                 ))}
                                             </div>

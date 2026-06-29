@@ -15,7 +15,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from database import get_db, engine, Base, SessionLocal
-from models import Admin, BlogPost, Photo, Note
+from models import Admin, BlogPost, Photo, Note, Skill
 from security import (
     hash_password,
     verify_password,
@@ -52,6 +52,42 @@ async def lifespan(app: FastAPI):
             db.add(seed_admin)
             db.commit()
             print("Database tables created and Admin user seeded successfully.")
+
+        # Seed initial skills if table is empty
+        skill_count = db.query(Skill).count()
+        if skill_count == 0:
+            initial_skills = [
+                # Machine Learning
+                Skill(name='Python', category='Machine Learning', icon_key='python', status='mastered', display_order=1),
+                Skill(name='PyTorch', category='Machine Learning', icon_key='pytorch', status='mastered', display_order=2),
+                Skill(name='TensorFlow', category='Machine Learning', icon_key='tensorflow', status='mastered', display_order=3),
+                Skill(name='scikit-learn', category='Machine Learning', icon_key='scikitlearn', status='mastered', display_order=4),
+                Skill(name='NumPy', category='Machine Learning', icon_key='numpy', status='mastered', display_order=5),
+                Skill(name='Pandas', category='Machine Learning', icon_key='pandas', status='mastered', display_order=6),
+                # Programming
+                Skill(name='C', category='Programming', icon_key='c', status='mastered', display_order=7),
+                Skill(name='C++', category='Programming', icon_key='cplusplus', status='mastered', display_order=8),
+                Skill(name='Java', category='Programming', icon_key='java', status='mastered', display_order=9),
+                # Web Development
+                Skill(name='HTML', category='Web Development', icon_key='html5', status='mastered', display_order=10),
+                Skill(name='CSS', category='Web Development', icon_key='css3', status='mastered', display_order=11),
+                Skill(name='JavaScript', category='Web Development', icon_key='javascript', status='mastered', display_order=12),
+                Skill(name='React', category='Web Development', icon_key='react', status='mastered', display_order=13),
+                Skill(name='FastAPI', category='Web Development', icon_key='fastapi', status='mastered', display_order=14),
+                # Data Science
+                Skill(name='Matplotlib', category='Data Science', icon_key='matplotlib', status='mastered', display_order=15),
+                Skill(name='Jupyter Notebook', category='Data Science', icon_key='jupyter', status='mastered', display_order=16),
+                Skill(name='Kaggle', category='Data Science', icon_key='kaggle', status='mastered', display_order=17),
+                # Tools & Platforms
+                Skill(name='Git', category='Tools & Platforms', icon_key='git', status='mastered', display_order=18),
+                Skill(name='GitHub', category='Tools & Platforms', icon_key='github', status='mastered', display_order=19),
+                Skill(name='VS Code', category='Tools & Platforms', icon_key='visualstudiocode', status='mastered', display_order=20),
+                Skill(name='Vercel', category='Tools & Platforms', icon_key='vercel', status='mastered', display_order=21),
+                Skill(name='Linux', category='Tools & Platforms', icon_key='linux', status='mastered', display_order=22),
+            ]
+            db.add_all(initial_skills)
+            db.commit()
+            print("Initial skills seeded successfully.")
     except Exception as e:
         print(f"Error seeding database or running migrations: {e}")
     finally:
@@ -134,6 +170,20 @@ class NoteCreate(BaseModel):
 class NoteUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
+
+class SkillCreate(BaseModel):
+    name: str
+    category: Optional[str] = 'General'
+    icon_key: Optional[str] = None
+    status: Optional[str] = 'mastered'  # 'learning' | 'mastered'
+    display_order: Optional[int] = 0
+
+class SkillUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    icon_key: Optional[str] = None
+    status: Optional[str] = None
+    display_order: Optional[int] = None
 
 class SignatureRequest(BaseModel):
     params: dict
@@ -539,3 +589,63 @@ def delete_note(id: int, db: Session = Depends(get_db), admin_session = Depends(
     db.delete(note)
     db.commit()
     return {"status": "success", "message": "Note deleted successfully"}
+
+# ─── Skills Endpoints ─────────────────────────────────────────────────────────
+
+@app.get("/api/skills")
+def get_skills(db: Session = Depends(get_db)):
+    """Public endpoint – returns all skills ordered by display_order."""
+    skills = db.query(Skill).order_by(Skill.display_order).all()
+    return [
+        {
+            "id": s.id,
+            "name": s.name,
+            "category": s.category,
+            "icon_key": s.icon_key,
+            "status": s.status,
+            "display_order": s.display_order,
+        }
+        for s in skills
+    ]
+
+@app.post("/api/skills")
+def create_skill(data: SkillCreate, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    skill = Skill(
+        name=data.name,
+        category=data.category,
+        icon_key=data.icon_key,
+        status=data.status,
+        display_order=data.display_order,
+    )
+    db.add(skill)
+    db.commit()
+    db.refresh(skill)
+    return skill
+
+@app.put("/api/skills/{id}")
+def update_skill(id: int, data: SkillUpdate, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    skill = db.query(Skill).filter(Skill.id == id).first()
+    if not skill:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
+    if data.name is not None:
+        skill.name = data.name
+    if data.category is not None:
+        skill.category = data.category
+    if data.icon_key is not None:
+        skill.icon_key = data.icon_key
+    if data.status is not None:
+        skill.status = data.status
+    if data.display_order is not None:
+        skill.display_order = data.display_order
+    db.commit()
+    db.refresh(skill)
+    return skill
+
+@app.delete("/api/skills/{id}")
+def delete_skill(id: int, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    skill = db.query(Skill).filter(Skill.id == id).first()
+    if not skill:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
+    db.delete(skill)
+    db.commit()
+    return {"status": "success", "message": "Skill deleted successfully"}
