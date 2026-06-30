@@ -10,8 +10,11 @@
 }
 
 .markdown-body {
-    font-size: 1.1rem;
-    line-height: 1.8;
+    max-width: 720px;
+    margin: 0 auto;
+    font-size: 1.125rem;
+    line-height: 1.95;
+    color: #e5e7eb;
 }
 
 .markdown-body h1, 
@@ -19,19 +22,19 @@
 .markdown-body h3, 
 .markdown-body h4 {
     color: var(--color-white);
-    font-family: var(--font-accent);
-    margin-top: 2rem;
-    margin-bottom: 1rem;
+    font-family: 'Times New Roman', Times, serif !important;
+    margin-top: 3.5rem;
+    margin-bottom: 1.25rem;
     font-weight: 700;
 }
 
-.markdown-body h1 { font-size: 2rem; }
-.markdown-body h2 { font-size: 1.6rem; border-bottom: 1px solid #222; padding-bottom: 0.5rem; }
-.markdown-body h3 { font-size: 1.3rem; }
+.markdown-body h1 { font-size: 2.25rem; }
+.markdown-body h2 { font-size: 1.8rem; border-bottom: 1px solid #1a1a1a; padding-bottom: 0.5rem; }
+.markdown-body h3 { font-size: 1.45rem; }
 
 .markdown-body p {
-    margin-bottom: 1.5rem;
-    color: #ccc;
+    margin-bottom: 1.75rem;
+    color: #d1d5db;
 }
 
 .markdown-body strong {

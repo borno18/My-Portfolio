@@ -88,9 +88,12 @@ const Blog = () => {
                                                 <div className="flex items-center gap-2 text-zinc-500 text-xs mb-3">
                                                     <Calendar size={12} />
                                                     <span>{new Date(post.published_at || post.created_at).toLocaleDateString()}</span>
+                                                    <span>•</span>
+                                                    <BookOpen size={12} />
+                                                    <span>{post.read_time || 1} min read</span>
                                                 </div>
-                                                <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 hover:text-orange transition-colors">
-                                                    <Link to={`/blog/${post.slug}`}>{post.title}</Link>
+                                                <h3 className="text-lg font-bold text-white mb-2 line-clamp-2 hover:text-orange transition-colors blog-post-title">
+                                                    <Link to={`/blog/${post.slug}`} className="blog-post-title">{post.title}</Link>
                                                 </h3>
                                                 <p className="text-zinc-400 text-sm line-clamp-3 mb-4">
                                                     {plainExcerpt}

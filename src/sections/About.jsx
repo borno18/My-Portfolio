@@ -64,7 +64,10 @@ const SkillCard = ({ skill }) => {
                         src={iconUrl}
                         alt={skill.name}
                         className="skill-icon"
-                        onError={(e) => { e.target.style.display = 'none'; }}
+                        onError={(e) => { 
+                            e.target.onerror = null; 
+                            e.target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='16 18 22 12 16 6'></polyline><polyline points='8 6 2 12 8 18'></polyline></svg>"; 
+                        }}
                     />
                 ) : (
                     <span className="skill-icon-fallback">{skill.name[0]}</span>

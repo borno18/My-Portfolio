@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
     LayoutDashboard, BookOpen, Image, FileText, Lock, LogOut, Plus, 
-    Edit2, Trash2, Save, X, ArrowLeft, RefreshCw, Upload, Link2, Eye, EyeOff, Swords 
+    Edit2, Trash2, Save, X, ArrowLeft, RefreshCw, Upload, Link2, Eye, EyeOff, Swords,
+    Mail, MailOpen, Briefcase
 } from 'lucide-react';
 import { useMotionTransition, revealVariants } from '../lib/motion';
 import './Admin.css';
@@ -28,13 +29,21 @@ const Admin = () => {
     const [photos, setPhotos] = useState([]);
     const [notes, setNotes] = useState([]);
     const [skills, setSkills] = useState([]);
+    const [simpleSlugs, setSimpleSlugs] = useState([]);
+    const [previewIconFailed, setPreviewIconFailed] = useState(false);
+    const [messages, setMessages] = useState([]);
+    const [expandedMessageIds, setExpandedMessageIds] = useState({});
+    const [blogFilter, setBlogFilter] = useState('all');
+    const [projects, setProjects] = useState([]);
+    const [projectForm, setProjectForm] = useState({ title: '', description: '', github_url: '', live_url: '', tech_stack: '', display_order: 0, is_visible: true });
+    const [githubRepoPath, setGithubRepoPath] = useState('');
 
     // Editing States
     const [editingItem, setEditingItem] = useState(null); // { type: 'blog'|'photo'|'note', data: ... } or null
     const [showCreateForm, setShowCreateForm] = useState(false);
 
     // Form inputs
-    const [blogForm, setBlogForm] = useState({ title: '', slug: '', content: '', cover_image_url: '', status: 'draft' });
+    const [blogForm, setBlogForm] = useState({ title: '', slug: '', content: '', cover_image_url: '', status: 'draft', read_time: '' });
     const [photoForm, setPhotoForm] = useState({ image_url: '', story: '', camera: '', lens: '', settings: '', taken_at: '', display_order: 0, category: 'Street' });
     const [noteForm, setNoteForm] = useState({ title: '', content: '' });
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '' });
@@ -66,11 +75,78 @@ const Admin = () => {
         checkSession();
     }, []);
 
+    useEffect(() => {
+        const fetchSlugs = async () => {
+            const fallbackSlugs = [
+                { brand: 'Python', slug: 'python' },
+                { brand: 'JavaScript', slug: 'javascript' },
+                { brand: 'React', slug: 'react' },
+                { brand: 'FastAPI', slug: 'fastapi' },
+                { brand: 'C', slug: 'c' },
+                { brand: 'C++', slug: 'cplusplus' },
+                { brand: 'Java', slug: 'java' },
+                { brand: 'HTML5', slug: 'html5' },
+                { brand: 'CSS3', slug: 'css3' },
+                { brand: 'Git', slug: 'git' },
+                { brand: 'GitHub', slug: 'github' },
+                { brand: 'Docker', slug: 'docker' },
+                { brand: 'PostgreSQL', slug: 'postgresql' },
+                { brand: 'MongoDB', slug: 'mongodb' },
+                { brand: 'Node.js', slug: 'nodedotjs' },
+                { brand: 'TypeScript', slug: 'typescript' },
+                { brand: 'Next.js', slug: 'nextdotjs' },
+                { brand: 'Tailwind CSS', slug: 'tailwindcss' },
+                { brand: 'PyTorch', slug: 'pytorch' },
+                { brand: 'TensorFlow', slug: 'tensorflow' },
+                { brand: 'scikit-learn', slug: 'scikitlearn' },
+                { brand: 'NumPy', slug: 'numpy' },
+                { brand: 'Pandas', slug: 'pandas' },
+                { brand: 'Matplotlib', slug: 'matplotlib' },
+                { brand: 'Jupyter', slug: 'jupyter' },
+                { brand: 'Kaggle', slug: 'kaggle' },
+                { brand: 'VS Code', slug: 'visualstudiocode' },
+                { brand: 'Vercel', slug: 'vercel' },
+                { brand: 'Linux', slug: 'linux' }
+            ];
+            try {
+                const res = await fetch('https://raw.githubusercontent.com/simple-icons/simple-icons/develop/slugs.md');
+                if (res.ok) {
+                    const text = await res.text();
+                    const lines = text.split('\n');
+                    const list = [];
+                    for (const line of lines) {
+                        const parts = line.split('|');
+                        if (parts.length >= 3) {
+                            const brand = parts[1].replace(/`/g, '').trim();
+                            const slug = parts[2].replace(/`/g, '').trim();
+                            if (slug && slug !== 'Brand slug' && !slug.startsWith(':')) {
+                                list.push({ brand, slug });
+                            }
+                        }
+                    }
+                    if (list.length > 0) {
+                        setSimpleSlugs(list);
+                        return;
+                    }
+                }
+                setSimpleSlugs(fallbackSlugs);
+            } catch (err) {
+                console.warn('Failed to fetch Simple Icons slugs from GitHub:', err);
+                setSimpleSlugs(fallbackSlugs);
+            }
+        };
+        fetchSlugs();
+    }, []);
+
+    useEffect(() => {
+        setPreviewIconFailed(false);
+    }, [skillForm.icon_key]);
+
     const loadAllData = async () => {
         setAuthChecking(false);
         try {
             // Load blogs
-            const resBlog = await fetch(`${API_BASE}/api/blog`);
+            const resBlog = await fetch(`${API_BASE}/api/admin/blog`, { credentials: 'include' });
             if (resBlog.ok) {
                 const data = await resBlog.json();
                 setBlogs(data);
@@ -95,6 +171,20 @@ const Admin = () => {
             if (resSkills.ok) {
                 const data = await resSkills.json();
                 setSkills(data);
+            }
+
+            // Load contact messages (authenticated)
+            const resMsg = await fetch(`${API_BASE}/api/admin/messages`, { credentials: 'include' });
+            if (resMsg.ok) {
+                const data = await resMsg.json();
+                setMessages(data);
+            }
+
+            // Load curated projects
+            const resProj = await fetch(`${API_BASE}/api/admin/projects`, { credentials: 'include' });
+            if (resProj.ok) {
+                const data = await resProj.json();
+                setProjects(data);
             }
         } catch (err) {
             console.error('Error fetching admin dashboard data:', err);
@@ -149,6 +239,35 @@ const Admin = () => {
         const title = e.target.value;
         const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
         setBlogForm({ ...blogForm, title, slug });
+    };
+
+    const handleSkillNameChange = (e) => {
+        const name = e.target.value;
+        setSkillForm(prev => {
+            const newForm = { ...prev, name };
+            const query = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (query && simpleSlugs.length > 0) {
+                let match = simpleSlugs.find(item => 
+                    item.brand.toLowerCase().replace(/[^a-z0-9]/g, '') === query || 
+                    item.slug === query
+                );
+                if (!match) {
+                    match = simpleSlugs.find(item => 
+                        item.brand.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(query) ||
+                        item.slug.startsWith(query)
+                    );
+                }
+                if (!match) {
+                    match = simpleSlugs.find(item => item.slug.includes(query));
+                }
+                if (match) {
+                    newForm.icon_key = match.slug;
+                }
+            } else if (!query) {
+                newForm.icon_key = '';
+            }
+            return newForm;
+        });
     };
 
     // ──â”€ Image Uploading ──────────────────────────────────────────────────────â”€
@@ -254,10 +373,15 @@ const Admin = () => {
                 : `${API_BASE}/api/blog`;
             const method = isEditing ? 'PUT' : 'POST';
 
+            const payload = {
+                ...blogForm,
+                read_time: blogForm.read_time ? parseInt(blogForm.read_time, 10) : null
+            };
+
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(blogForm),
+                body: JSON.stringify(payload),
                 credentials: 'include'
             });
 
@@ -267,14 +391,14 @@ const Admin = () => {
             }
 
             // Reload blogs
-            const resBlogs = await fetch(`${API_BASE}/api/blog`);
+            const resBlogs = await fetch(`${API_BASE}/api/admin/blog`, { credentials: 'include' });
             const data = await resBlogs.json();
             setBlogs(data);
 
             setSuccess('Blog post saved successfully!');
             setShowCreateForm(false);
             setEditingItem(null);
-            setBlogForm({ title: '', slug: '', content: '', cover_image_url: '', status: 'draft' });
+            setBlogForm({ title: '', slug: '', content: '', cover_image_url: '', status: 'draft', read_time: '' });
         } catch (err) {
             setError(err.message);
         } finally {
@@ -505,6 +629,101 @@ const Admin = () => {
         }
     };
 
+    const saveProject = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        try {
+            const isEditing = editingItem && editingItem.type === 'project';
+            const url = isEditing 
+                ? `${API_BASE}/api/projects/${editingItem.data.id}`
+                : `${API_BASE}/api/projects`;
+            const method = isEditing ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(projectForm),
+                credentials: 'include'
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Failed to save project');
+            }
+
+            // Reload projects
+            const resProjects = await fetch(`${API_BASE}/api/admin/projects`, { credentials: 'include' });
+            const data = await resProjects.json();
+            setProjects(data);
+
+            setSuccess('Project saved successfully!');
+            setShowCreateForm(false);
+            setEditingItem(null);
+            setProjectForm({ title: '', description: '', github_url: '', live_url: '', tech_stack: '', display_order: 0, is_visible: true });
+            setGithubRepoPath('');
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const deleteProject = async (id) => {
+        if (!confirm('Are you sure you want to delete this project?')) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/projects/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setProjects(projects.filter(p => p.id !== id));
+                setSuccess('Project deleted successfully.');
+            }
+        } catch (err) {
+            setError('Failed to delete project');
+        }
+    };
+
+    const toggleMessageRead = async (id) => {
+        try {
+            const res = await fetch(`${API_BASE}/api/admin/messages/${id}/read`, {
+                method: 'PATCH',
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setMessages(messages.map(m => m.id === id ? { ...m, is_read: true } : m));
+                setSuccess('Message marked as read.');
+            } else {
+                throw new Error('Failed to update status');
+            }
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const deleteMessage = async (id) => {
+        if (!confirm('Are you sure you want to delete this message?')) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/admin/messages/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setMessages(messages.filter(m => m.id !== id));
+                setSuccess('Message deleted successfully.');
+            } else {
+                throw new Error('Failed to delete message');
+            }
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    const toggleExpandMessage = (id) => {
+        setExpandedMessageIds(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
     const handlePasswordChange = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -611,6 +830,14 @@ const Admin = () => {
                                 <BookOpen size={16} /> Blog Posts
                             </button>
                             <button 
+                                onClick={() => { setActiveTab('messages'); setShowCreateForm(false); setEditingItem(null); }}
+                                className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === 'messages' ? 'bg-orange text-black' : 'bg-zinc-900/60 text-zinc-400 border border-solid border-zinc-800/40 hover:text-white'
+                                }`}
+                            >
+                                <Mail size={16} /> Hawk Inbox
+                            </button>
+                            <button 
                                 onClick={() => { setActiveTab('photos'); setShowCreateForm(false); setEditingItem(null); }}
                                 className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
                                     activeTab === 'photos' ? 'bg-orange text-black' : 'bg-zinc-900/60 text-zinc-400 border border-solid border-zinc-800/40 hover:text-white'
@@ -633,6 +860,14 @@ const Admin = () => {
                                 }`}
                             >
                                 <Swords size={16} /> Skills Arsenal
+                            </button>
+                            <button 
+                                onClick={() => { setActiveTab('projects'); setShowCreateForm(false); setEditingItem(null); }}
+                                className={`w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    activeTab === 'projects' ? 'bg-orange text-black' : 'bg-zinc-900/60 text-zinc-400 border border-solid border-zinc-800/40 hover:text-white'
+                                }`}
+                            >
+                                <Briefcase size={16} /> Missions Control
                             </button>
                             <button 
                                 onClick={() => { setActiveTab('password'); setShowCreateForm(false); setEditingItem(null); }}
@@ -659,8 +894,7 @@ const Admin = () => {
                                     <X size={16} className="cursor-pointer" onClick={() => setError(null)} />
                                 </div>
                             )}
-
-                            {/* Form Render Check */}
+            {/* Form Render Check */}
                             {(showCreateForm || editingItem) ? (
                                 <div>
                                     <div className="flex justify-between items-center mb-6">
@@ -765,6 +999,19 @@ const Admin = () => {
                                                     <option value="draft">Draft</option>
                                                     <option value="published">Published</option>
                                                 </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">
+                                                    Read Time (Minutes) <span className="normal-case text-zinc-600">(Optional - leave empty or 0 to auto-calculate)</span>
+                                                </label>
+                                                <input 
+                                                    type="number"
+                                                    value={blogForm.read_time || ''}
+                                                    onChange={(e) => setBlogForm({ ...blogForm, read_time: e.target.value ? parseInt(e.target.value, 10) : '' })}
+                                                    className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white font-main"
+                                                    placeholder="e.g. 5"
+                                                    min="0"
+                                                />
                                             </div>
                                             <button 
                                                 type="submit" 
@@ -966,6 +1213,141 @@ const Admin = () => {
                                         </form>
                                     )}
 
+                                    {/* ── Project Form ────────────────────────────────────────── */}
+                                    {activeTab === 'projects' && (
+                                        <form onSubmit={saveProject} className="space-y-4 font-main">
+                                            <div className="bg-zinc-950/40 p-4 rounded-xl border border-solid border-zinc-800/60 mb-4">
+                                                <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-2">GitHub Repo Lookup (Auto-fill)</h4>
+                                                <div className="flex gap-2">
+                                                    <input 
+                                                        type="text" 
+                                                        value={githubRepoPath}
+                                                        onChange={(e) => setGithubRepoPath(e.target.value)}
+                                                        className="flex-1 bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2 rounded-lg text-white text-sm"
+                                                        placeholder="e.g. borno18/My-Portfolio"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            if (!githubRepoPath) {
+                                                                alert('Please enter repository path (owner/repo)');
+                                                                return;
+                                                            }
+                                                            setLoading(true);
+                                                            try {
+                                                                const res = await fetch(`https://api.github.com/repos/${githubRepoPath}`);
+                                                                if (!res.ok) throw new Error('Repository not found or rate limited');
+                                                                const data = await res.json();
+                                                                setProjectForm(prev => ({
+                                                                    ...prev,
+                                                                    title: data.name || '',
+                                                                    description: data.description || '',
+                                                                    github_url: data.html_url || '',
+                                                                    tech_stack: data.language ? data.language : prev.tech_stack
+                                                                }));
+                                                            } catch (err) {
+                                                                alert(err.message);
+                                                            } finally {
+                                                                setLoading(false);
+                                                            }
+                                                        }}
+                                                        disabled={loading}
+                                                        className="bg-orange text-black font-bold uppercase tracking-wider text-xs px-4 py-2 rounded-lg hover:bg-orange/90 flex items-center gap-1.5"
+                                                    >
+                                                        <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Fetch Info
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Project Title</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={projectForm.title}
+                                                    onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
+                                                    className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Description</label>
+                                                <textarea 
+                                                    rows={4}
+                                                    value={projectForm.description}
+                                                    onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                                                    className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-3 rounded-lg text-white resize-y"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">GitHub URL</label>
+                                                    <input 
+                                                        type="url" 
+                                                        value={projectForm.github_url || ''}
+                                                        onChange={(e) => setProjectForm({ ...projectForm, github_url: e.target.value })}
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white"
+                                                        placeholder="e.g. https://github.com/..."
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Live Demo URL</label>
+                                                    <input 
+                                                        type="url" 
+                                                        value={projectForm.live_url || ''}
+                                                        onChange={(e) => setProjectForm({ ...projectForm, live_url: e.target.value })}
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white"
+                                                        placeholder="e.g. https://..."
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Tech Stack <span className="normal-case text-zinc-600">(comma-separated)</span></label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={projectForm.tech_stack || ''}
+                                                        onChange={(e) => setProjectForm({ ...projectForm, tech_stack: e.target.value })}
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white"
+                                                        placeholder="e.g. React, Node.js, CSS"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Display Order</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={projectForm.display_order}
+                                                        onChange={(e) => setProjectForm({ ...projectForm, display_order: parseInt(e.target.value) || 0 })}
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Visibility</label>
+                                                <select 
+                                                    value={projectForm.is_visible ? 'true' : 'false'}
+                                                    onChange={(e) => setProjectForm({ ...projectForm, is_visible: e.target.value === 'true' })}
+                                                    className="w-full bg-zinc-900 border border-solid border-zinc-800 px-4 py-2.5 rounded-lg text-white"
+                                                >
+                                                    <option value="true">Visible</option>
+                                                    <option value="false">Hidden</option>
+                                                </select>
+                                            </div>
+
+                                            <button 
+                                                type="submit" 
+                                                disabled={loading}
+                                                className="bg-orange text-black font-bold uppercase tracking-wider text-xs px-6 py-3 rounded-lg cursor-pointer hover:bg-orange/90 inline-flex items-center gap-2"
+                                            >
+                                                <Save size={14} /> Save Mission
+                                            </button>
+                                        </form>
+                                    )}
+
                                     {/* ── Skill Form ────────────────────────────────────────── */}
                                     {activeTab === 'skills' && (
                                         <form onSubmit={saveSkill} className="space-y-4 font-main">
@@ -975,7 +1357,7 @@ const Admin = () => {
                                                     <input
                                                         type="text"
                                                         value={skillForm.name}
-                                                        onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })}
+                                                        onChange={handleSkillNameChange}
                                                         className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white font-main"
                                                         placeholder="e.g. Python"
                                                         required
@@ -1012,13 +1394,19 @@ const Admin = () => {
                                                     />
                                                     {skillForm.icon_key && (
                                                         <div className="mt-2 flex items-center gap-2">
-                                                            <img
-                                                                src={`https://cdn.simpleicons.org/${skillForm.icon_key}`}
-                                                                alt="preview"
-                                                                className="w-5 h-5 object-contain"
-                                                                onError={(e) => { e.target.style.display = 'none'; }}
-                                                            />
-                                                            <span className="text-[11px] text-zinc-600">Logo preview</span>
+                                                            {!previewIconFailed ? (
+                                                                <>
+                                                                    <img
+                                                                        src={`https://cdn.simpleicons.org/${skillForm.icon_key}`}
+                                                                        alt="preview"
+                                                                        className="w-5 h-5 object-contain"
+                                                                        onError={() => setPreviewIconFailed(true)}
+                                                                    />
+                                                                    <span className="text-[11px] text-zinc-600">Logo preview</span>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-[11px] text-rose-500 font-semibold">No matching icon found</span>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1072,13 +1460,112 @@ const Admin = () => {
                                 </div>
                             ) : (
                                 <div>
+                                    {/* ── TAB CONTENT: HAWK INBOX ─────────────────────────── */}
+                                    {activeTab === 'messages' && (
+                                        <div>
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h3 className="text-lg font-bold uppercase tracking-widest text-white flex items-center gap-2">
+                                                    <Mail className="text-orange" size={20} /> Hawk Inbox
+                                                </h3>
+                                            </div>
+
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left font-main border-collapse">
+                                                    <thead>
+                                                        <tr className="border-b border-solid border-zinc-800 text-xs text-zinc-500 uppercase tracking-wider">
+                                                            <th className="py-3 px-4">Name</th>
+                                                            <th className="py-3 px-4">Email</th>
+                                                            <th className="py-3 px-4">Message</th>
+                                                            <th className="py-3 px-4">Date</th>
+                                                            <th className="py-3 px-4 text-right">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {messages.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan={5} className="py-8 px-4 text-center text-zinc-500">
+                                                                    No messages received yet. The sky is clear!
+                                                                </td>
+                                                            </tr>
+                                                        ) : (
+                                                            messages.map(msg => {
+                                                                const isExpanded = !!expandedMessageIds[msg.id];
+                                                                const isRead = msg.is_read;
+                                                                return (
+                                                                    <tr key={msg.id} className={`border-b border-solid border-zinc-800/40 text-sm hover:bg-zinc-900/10 ${!isRead ? 'font-semibold text-white' : 'text-zinc-400'}`}>
+                                                                        <td className="py-3 px-4">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                {!isRead && <span className="w-2 h-2 rounded-full bg-orange inline-block flex-shrink-0 animate-pulse" title="Unread" />}
+                                                                                <span>{msg.name}</span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="py-3 px-4">
+                                                                            <a href={`mailto:${msg.email}`} className="text-orange hover:underline">{msg.email}</a>
+                                                                        </td>
+                                                                        <td className="py-3 px-4 max-w-xs sm:max-w-md">
+                                                                            <div 
+                                                                                onClick={() => toggleExpandMessage(msg.id)} 
+                                                                                className="cursor-pointer break-words"
+                                                                            >
+                                                                                {isExpanded ? (
+                                                                                    <span className="whitespace-pre-wrap">{msg.message}</span>
+                                                                                ) : (
+                                                                                    <span>
+                                                                                        {msg.message.length > 80 ? msg.message.slice(0, 80) + '...' : msg.message}
+                                                                                        {msg.message.length > 80 && <span className="text-[10px] text-orange ml-1.5 hover:underline">(expand)</span>}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="py-3 px-4 text-xs whitespace-nowrap text-zinc-500">
+                                                                            {new Date(msg.created_at).toLocaleString()}
+                                                                        </td>
+                                                                        <td className="py-3 px-4 text-right space-x-2 whitespace-nowrap">
+                                                                            {!isRead && (
+                                                                                <button 
+                                                                                    onClick={() => toggleMessageRead(msg.id)}
+                                                                                    title="Mark as Read"
+                                                                                    className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                                                                >
+                                                                                    <MailOpen size={13} />
+                                                                                </button>
+                                                                            )}
+                                                                            <button 
+                                                                                onClick={() => deleteMessage(msg.id)}
+                                                                                title="Delete Message"
+                                                                                className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-500 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                                                                            >
+                                                                                <Trash2 size={13} />
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* ── TAB CONTENT: BLOG LIST ────────────────────────────â”€ */}
                                     {activeTab === 'blog' && (
                                         <div>
                                             <div className="flex justify-between items-center mb-6">
-                                                <h3 className="text-lg font-bold uppercase tracking-widest text-white">Blog Posts</h3>
+                                                <div className="flex items-center gap-4">
+                                                    <h3 className="text-lg font-bold uppercase tracking-widest text-white">Blog Posts</h3>
+                                                    <select 
+                                                        value={blogFilter}
+                                                        onChange={(e) => setBlogFilter(e.target.value)}
+                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-xs px-3 py-1.5 rounded-lg text-zinc-300 font-main focus:border-orange/60 outline-none"
+                                                    >
+                                                        <option value="all">All Status</option>
+                                                        <option value="published">Published Only</option>
+                                                        <option value="draft">Drafts Only</option>
+                                                    </select>
+                                                </div>
                                                 <button 
-                                                    onClick={() => { setShowCreateForm(true); setBlogForm({ title: '', slug: '', content: '', cover_image_url: '', status: 'draft' }); }}
+                                                    onClick={() => { setShowCreateForm(true); setBlogForm({ title: '', slug: '', content: '', cover_image_url: '', status: 'draft', read_time: '' }); }}
                                                     className="bg-orange text-black font-bold uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl cursor-pointer hover:bg-orange/90 inline-flex items-center gap-1.5"
                                                 >
                                                     <Plus size={14} /> New Scroll
@@ -1096,42 +1583,44 @@ const Admin = () => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {blogs.map(blog => (
-                                                            <tr key={blog.id} className="border-b border-solid border-zinc-800/40 text-sm hover:bg-zinc-900/10">
-                                                                <td className="py-3 px-4 text-white font-semibold">{blog.title}</td>
-                                                                <td className="py-3 px-4">
-                                                                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-solid ${
-                                                                        blog.status === 'published' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-950/20' : 'text-zinc-400 border-zinc-800 bg-zinc-900/30'
-                                                                    }`}>
-                                                                        {blog.status}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="py-3 px-4 text-zinc-500">
-                                                                    {blog.published_at ? new Date(blog.published_at).toLocaleDateString() : 'N/A'}
-                                                                </td>
-                                                                <td className="py-3 px-4 text-right space-x-2">
-                                                                    <button 
-                                                                        onClick={async () => {
-                                                                            const res = await fetch(`${API_BASE}/api/blog/${blog.slug}`);
-                                                                            if (res.ok) {
-                                                                                const fullBlog = await res.json();
-                                                                                setEditingItem({ type: 'blog', data: fullBlog });
-                                                                                setBlogForm(fullBlog);
-                                                                            }
-                                                                        }}
-                                                                        className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-                                                                    >
-                                                                        <Edit2 size={13} />
-                                                                    </button>
-                                                                    <button 
-                                                                        onClick={() => deleteBlog(blog.id)}
-                                                                        className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-500 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
-                                                                    >
-                                                                        <Trash2 size={13} />
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
+                                                        {blogs
+                                                            .filter(blog => blogFilter === 'all' ? true : blog.status === blogFilter)
+                                                            .map(blog => (
+                                                                <tr key={blog.id} className="border-b border-solid border-zinc-800/40 text-sm hover:bg-zinc-900/10">
+                                                                    <td className="py-3 px-4 text-white font-semibold">{blog.title}</td>
+                                                                    <td className="py-3 px-4">
+                                                                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-solid ${
+                                                                            blog.status === 'published' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-950/20' : 'text-amber-400 border-amber-500/20 bg-amber-950/20'
+                                                                        }`}>
+                                                                            {blog.status}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="py-3 px-4 text-zinc-500">
+                                                                        {blog.published_at ? new Date(blog.published_at).toLocaleDateString() : 'N/A'}
+                                                                    </td>
+                                                                    <td className="py-3 px-4 text-right space-x-2">
+                                                                        <button 
+                                                                            onClick={async () => {
+                                                                                const res = await fetch(`${API_BASE}/api/blog/${blog.slug}`);
+                                                                                if (res.ok) {
+                                                                                    const fullBlog = await res.json();
+                                                                                    setEditingItem({ type: 'blog', data: fullBlog });
+                                                                                    setBlogForm(fullBlog);
+                                                                                }
+                                                                            }}
+                                                                            className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                                                        >
+                                                                            <Edit2 size={13} />
+                                                                        </button>
+                                                                        <button 
+                                                                            onClick={() => deleteBlog(blog.id)}
+                                                                            className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-500 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                                                                        >
+                                                                            <Trash2 size={13} />
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
                                                     </tbody>
                                                 </table>
                                             </div>
@@ -1238,6 +1727,89 @@ const Admin = () => {
                                         </div>
                                     )}
 
+                                    {/* ── TAB CONTENT: PROJECTS LIST ────────────────────────── */}
+                                    {activeTab === 'projects' && (
+                                        <div>
+                                            <div className="flex justify-between items-center mb-6">
+                                                <h3 className="text-lg font-bold uppercase tracking-widest text-white">Missions Control</h3>
+                                                <button
+                                                    onClick={() => { setShowCreateForm(true); setProjectForm({ title: '', description: '', github_url: '', live_url: '', tech_stack: '', display_order: projects.length + 1, is_visible: true }); setGithubRepoPath(''); }}
+                                                    className="bg-orange text-black font-bold uppercase tracking-wider text-xs px-4 py-2.5 rounded-xl cursor-pointer hover:bg-orange/90 inline-flex items-center gap-1.5"
+                                                >
+                                                    <Plus size={14} /> Add Mission
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-3 font-main">
+                                                {projects.length === 0 ? (
+                                                    <p className="text-zinc-500 text-sm text-center py-8">No missions registered.</p>
+                                                ) : (
+                                                    projects.map(p => (
+                                                        <div key={p.id} className={`flex items-center justify-between p-4 rounded-xl border border-solid transition-all ${
+                                                            p.is_visible
+                                                                ? 'border-zinc-800/60 bg-zinc-900/20 hover:border-zinc-700/60'
+                                                                : 'border-zinc-800/30 bg-zinc-900/10 opacity-50'
+                                                        }`}>
+                                                            <div>
+                                                                <h4 className="font-bold text-white text-base">{p.title}</h4>
+                                                                <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{p.description}</p>
+                                                                <div className="flex items-center gap-2 mt-2 text-[10px] text-zinc-600">
+                                                                    <span>Order: {p.display_order}</span>
+                                                                    <span>•</span>
+                                                                    <span>Tech: {p.tech_stack || 'None'}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2.5">
+                                                                <button 
+                                                                    onClick={async () => {
+                                                                        const nextVal = !p.is_visible;
+                                                                        const res = await fetch(`${API_BASE}/api/projects/${p.id}`, {
+                                                                            method: 'PUT',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({ is_visible: nextVal }),
+                                                                            credentials: 'include'
+                                                                        });
+                                                                        if (res.ok) {
+                                                                            setProjects(projects.map(item => item.id === p.id ? { ...item, is_visible: nextVal } : item));
+                                                                        }
+                                                                    }}
+                                                                    title={p.is_visible ? "Hide from public site" : "Show on public site"}
+                                                                    className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                                                >
+                                                                    {p.is_visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        setEditingItem({ type: 'project', data: p });
+                                                                        setProjectForm({
+                                                                            title: p.title,
+                                                                            description: p.description,
+                                                                            github_url: p.github_url || '',
+                                                                            live_url: p.live_url || '',
+                                                                            tech_stack: p.tech_stack || '',
+                                                                            display_order: p.display_order,
+                                                                            is_visible: p.is_visible
+                                                                        });
+                                                                        setGithubRepoPath('');
+                                                                    }}
+                                                                    className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                                                                >
+                                                                    <Edit2 size={13} />
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => deleteProject(p.id)}
+                                                                    className="p-1.5 bg-zinc-900 border border-solid border-zinc-800 text-zinc-500 hover:text-red-400 rounded-lg transition-colors cursor-pointer"
+                                                                >
+                                                                    <Trash2 size={13} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* ── TAB CONTENT: SKILLS LIST ──────────────────────────â”€ */}
                                     {activeTab === 'skills' && (
                                         <div>
@@ -1263,7 +1835,10 @@ const Admin = () => {
                                                                 src={`https://cdn.simpleicons.org/${s.icon_key}`}
                                                                 alt={s.name}
                                                                 className="w-5 h-5 object-contain flex-shrink-0"
-                                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                                                onError={(e) => { 
+                                                                    e.target.onerror = null;
+                                                                    e.target.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='16 18 22 12 16 6'></polyline><polyline points='8 6 2 12 8 18'></polyline></svg>"; 
+                                                                }}
                                                             />
                                                         ) : (
                                                             <span className="w-5 h-5 flex-shrink-0 flex items-center justify-center bg-orange/10 text-orange text-xs font-bold rounded">

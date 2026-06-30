@@ -1,17 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Mail, Github, Linkedin, Send, CheckCircle, XCircle, Loader } from 'lucide-react';
-import emailjs from '@emailjs/browser';
 import { useSharedReveal, useMotionTransition, revealVariants } from '../lib/motion';
 import './Contact.css';
 
-const SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID  || 'YOUR_SERVICE_ID';
-const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID';
-const PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY  || 'YOUR_PUBLIC_KEY';
-
-const OWNER_EMAIL = 'joydipmajumdarborno@gmail.com';
-const isEmailJSConfigured = () =>
-    SERVICE_ID !== 'YOUR_SERVICE_ID' && TEMPLATE_ID !== 'YOUR_TEMPLATE_ID' && PUBLIC_KEY !== 'YOUR_PUBLIC_KEY';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const Contact = () => {
     const form = useRef();
@@ -24,33 +17,37 @@ const Contact = () => {
     const [infoRef, infoVisible] = useSharedReveal(true);
     const [formRef, formVisible] = useSharedReveal(true);
 
-    const sendEmail = (e) => {
+    const sendEmail = async (e) => {
         e.preventDefault();
-        const name    = form.current.user_name?.value  || '';
-        const email   = form.current.user_email?.value || '';
-        const message = form.current.message?.value    || '';
+        const name    = form.current.user_name?.value?.trim()  || '';
+        const email   = form.current.user_email?.value?.trim() || '';
+        const message = form.current.message?.value?.trim()    || '';
 
-        if (!isEmailJSConfigured()) {
-            const subject  = encodeURIComponent(`Portfolio Contact from ${name}`);
-            const body     = encodeURIComponent(`${message}\n\n---\nFrom: ${name}\nReply to: ${email}`);
-            window.open(`mailto:${OWNER_EMAIL}?subject=${subject}&body=${body}`, '_self');
-            setStatus('success');
-            e.target.reset();
+        if (!name || !email || !message) {
+            setStatus('error');
             setTimeout(() => setStatus('idle'), 5000);
             return;
         }
 
         setStatus('sending');
-        emailjs.sendForm(SERVICE_ID, TEMPLATE_ID, form.current, PUBLIC_KEY)
-            .then(() => {
+        try {
+            const res = await fetch(`${API_BASE}/api/contact`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, message })
+            });
+            if (res.ok) {
                 setStatus('success');
                 e.target.reset();
                 setTimeout(() => setStatus('idle'), 5000);
-            })
-            .catch(() => {
-                setStatus('error');
-                setTimeout(() => setStatus('idle'), 5000);
-            });
+            } else {
+                throw new Error('Server returned non-ok status');
+            }
+        } catch (err) {
+            console.error('Contact form submission failed:', err);
+            setStatus('error');
+            setTimeout(() => setStatus('idle'), 5000);
+        }
     };
 
     const isSending = status === 'sending';
@@ -181,7 +178,7 @@ const Contact = () => {
                                     className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-sm font-medium"
                                 >
                                     <CheckCircle size={16} />
-                                    Message sent successfully! I&apos;ll get back to you soon.
+                                    Scroll delivered! I&apos;ll get back to you soon.
                                 </motion.div>
                             )}
                             {status === 'error' && (

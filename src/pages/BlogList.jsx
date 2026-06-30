@@ -91,12 +91,15 @@ const BlogList = () => {
                                     <div>
                                         <div className="flex items-center gap-2 text-xs text-zinc-500 mb-3">
                                             <Calendar size={12} />
-                                            {post.published_at ? new Date(post.published_at).toLocaleDateString(undefined, {
+                                            <span>{post.published_at ? new Date(post.published_at).toLocaleDateString(undefined, {
                                                 year: 'numeric', month: 'long', day: 'numeric'
-                                            }) : 'Draft'}
+                                            }) : 'Draft'}</span>
+                                            <span>•</span>
+                                            <BookOpen size={12} />
+                                            <span>{post.read_time || 1} min read</span>
                                         </div>
-                                        <h2 className="text-xl sm:text-2xl font-bold font-accent text-white group-hover:text-orange transition-colors mb-2">
-                                            <Link to={`/blog/${post.slug}`}>{post.title}</Link>
+                                        <h2 className="text-xl sm:text-2xl font-bold font-accent text-white group-hover:text-orange transition-colors mb-2 blog-post-title">
+                                            <Link to={`/blog/${post.slug}`} className="blog-post-title">{post.title}</Link>
                                         </h2>
                                         <p className="text-zinc-400 text-sm line-clamp-3 mb-4">
                                             {post.excerpt}

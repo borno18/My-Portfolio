@@ -15,7 +15,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from database import get_db, engine, Base, SessionLocal
-from models import Admin, BlogPost, Photo, Note, Skill
+from models import Admin, BlogPost, Photo, Note, Skill, ContactMessage, Project
 from security import (
     hash_password,
     verify_password,
@@ -59,6 +59,13 @@ async def lifespan(app: FastAPI):
             db.execute(text("ALTER TABLE skills ADD COLUMN is_visible BOOLEAN NOT NULL DEFAULT true"))
             db.commit()
             print("Added column 'is_visible' to 'skills' table.")
+
+        # Migrate blog_posts table to add read_time column if missing
+        columns_blogs = [c['name'] for c in inspector.get_columns('blog_posts')]
+        if 'read_time' not in columns_blogs:
+            db.execute(text("ALTER TABLE blog_posts ADD COLUMN read_time INTEGER"))
+            db.commit()
+            print("Added column 'read_time' to 'blog_posts' table.")
 
         admin_count = db.query(Admin).count()
         if admin_count == 0:
@@ -104,6 +111,83 @@ async def lifespan(app: FastAPI):
             db.add_all(initial_skills)
             db.commit()
             print("Initial skills seeded successfully.")
+
+        # Seed initial projects if projects table is empty
+        project_count = db.query(Project).count()
+        if project_count == 0:
+            initial_projects = [
+                Project(
+                    title="Shinobi Portfolio",
+                    description="A highly dynamic, interactive, and responsive portfolio dashboard themed around the Naruto universe. Built using React, Vite, TailwindCSS, and FastAPI.",
+                    github_url="https://github.com/borno18/My-Portfolio",
+                    live_url="https://joydipmajumdar.vercel.app",
+                    tech_stack="React, FastAPI, PostgreSQL, TailwindCSS",
+                    display_order=1,
+                    is_visible=True
+                ),
+                Project(
+                    title="Leaf Village Library",
+                    description="A smart library administration system used to keep track of scrolls, Jutsu books, and ninja borrowing logs. Supports user role access levels and automated alerts.",
+                    github_url="https://github.com/borno18/leaf-library",
+                    live_url="https://leaf-library.onrender.com",
+                    tech_stack="Python, Flask, SQLite, Bootstrap",
+                    display_order=2,
+                    is_visible=True
+                )
+            ]
+            db.add_all(initial_projects)
+            db.commit()
+            print("Initial projects seeded successfully.")
+
+        # Audit and backfill skill icons
+        try:
+            import urllib.request
+            valid_slugs = set()
+            url = "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/slugs.md"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                html = response.read().decode('utf-8')
+                for line in html.split('\n'):
+                    parts = line.split('|')
+                    if len(parts) >= 3:
+                        slug = parts[2].replace('`', '').strip()
+                        if slug and slug != 'Brand slug' and not slug.startswith(':'):
+                            valid_slugs.add(slug.lower())
+            print(f"Loaded {len(valid_slugs)} valid slugs from Simple Icons GitHub.")
+        except Exception as e:
+            print(f"Error fetching simpleicons slugs for audit: {e}")
+            # Fallback popular slugs
+            valid_slugs = {
+                "python", "javascript", "react", "fastapi", "c", "cplusplus", "java", "html5", "css3",
+                "git", "github", "docker", "postgresql", "mongodb", "nodejs", "typescript", "nextdotjs",
+                "tailwindcss", "pytorch", "tensorflow", "scikitlearn", "numpy", "pandas", "matplotlib",
+                "jupyter", "kaggle", "visualstudiocode", "vercel", "linux"
+            }
+
+        # Select all skills and audit icon_key
+        skills_to_audit = db.query(Skill).all()
+        for s in skills_to_audit:
+            slug = s.icon_key.strip().lower() if s.icon_key else ""
+            if not slug or slug not in valid_slugs:
+                # Try to auto-match based on name
+                name_clean = re.sub(r'[^a-z0-9]', '', s.name.lower())
+                matched = False
+                for vs in valid_slugs:
+                    if vs == name_clean or vs.replace('dot', '') == name_clean:
+                        s.icon_key = vs
+                        matched = True
+                        print(f"Autocorrected skill '{s.name}' icon key to '{vs}'")
+                        break
+                if not matched:
+                    # Try prefix match (avoid mapping 'java' to 'javascript' or similar false positives)
+                    for vs in valid_slugs:
+                        if (vs.startswith(name_clean) or name_clean.startswith(vs)) and not (name_clean == 'java' and vs.startswith('js')):
+                            s.icon_key = vs
+                            matched = True
+                            print(f"Autocorrected skill '{s.name}' icon key to '{vs}' (prefix match)")
+                            break
+        db.commit()
+
     except Exception as e:
         print(f"Error seeding database or running migrations: {e}")
     finally:
@@ -149,6 +233,7 @@ class BlogPostCreate(BaseModel):
     content: str
     cover_image_url: Optional[str] = None
     status: Optional[str] = 'draft' # 'draft' | 'published'
+    read_time: Optional[int] = None # Manual read time in minutes
 
 class BlogPostUpdate(BaseModel):
     title: Optional[str] = None
@@ -156,6 +241,7 @@ class BlogPostUpdate(BaseModel):
     content: Optional[str] = None
     cover_image_url: Optional[str] = None
     status: Optional[str] = None # 'draft' | 'published'
+    read_time: Optional[int] = None # Manual read time in minutes
 
 class PhotoCreate(BaseModel):
     image_url: str
@@ -178,6 +264,24 @@ class PhotoUpdate(BaseModel):
     taken_at: Optional[datetime.date] = None
     display_order: Optional[int] = None
     category: Optional[str] = None
+
+class ProjectCreate(BaseModel):
+    title: str
+    description: str
+    github_url: Optional[str] = None
+    live_url: Optional[str] = None
+    tech_stack: Optional[str] = None
+    display_order: Optional[int] = 0
+    is_visible: Optional[bool] = True
+
+class ProjectUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    github_url: Optional[str] = None
+    live_url: Optional[str] = None
+    tech_stack: Optional[str] = None
+    display_order: Optional[int] = None
+    is_visible: Optional[bool] = None
 
 class NoteCreate(BaseModel):
     title: str
@@ -207,6 +311,11 @@ class SignatureRequest(BaseModel):
     params: dict
     file_size: Optional[int] = None
     mime_type: Optional[str] = None
+
+class ContactMessageCreate(BaseModel):
+    name: str
+    email: str
+    message: str
 
 # ─── Auth Dependency ──────────────────────────────────────────────────────────
 def get_current_admin(request: Request):
@@ -290,6 +399,76 @@ def change_password(request: Request, data: PasswordChangeRequest, db: Session =
     db.commit()
     return {"status": "success", "message": "Password updated successfully"}
 
+# ─── Contact Messages API ─────────────────────────────────────────────────────
+
+import re
+
+EMAIL_REGEX = re.compile(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)")
+
+@app.post("/api/contact", status_code=201)
+@limiter.limit("5/minute")
+def create_contact_message(request: Request, data: ContactMessageCreate, db: Session = Depends(get_db)):
+    name = data.name.strip()
+    email = data.email.strip()
+    message = data.message.strip()
+
+    if not name or not email or not message:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Name, email, and message are required and cannot be empty"
+        )
+
+    if len(name) > 100 or len(email) > 100 or len(message) > 5000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Input length exceeds maximum allowed limit"
+        )
+
+    if not EMAIL_REGEX.match(email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email format"
+        )
+
+    msg = ContactMessage(name=name, email=email, message=message)
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return {"status": "success", "id": msg.id}
+
+@app.get("/api/admin/messages")
+def list_contact_messages(db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    messages = db.query(ContactMessage).order_by(ContactMessage.created_at.desc()).all()
+    return messages
+
+@app.patch("/api/admin/messages/{id}/read")
+def mark_message_as_read(id: int, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    message = db.query(ContactMessage).filter(ContactMessage.id == id).first()
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found"
+        )
+    message.is_read = True
+    db.commit()
+    return {"status": "success", "message": "Message marked as read"}
+
+@app.delete("/api/admin/messages/{id}")
+def delete_contact_message(id: int, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    message = db.query(ContactMessage).filter(ContactMessage.id == id).first()
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Message not found"
+        )
+    db.delete(message)
+    db.commit()
+    return {"status": "success", "message": "Message deleted successfully"}
+
+@app.get("/api/health")
+def health_check():
+    return {"status": "ok"}
+
 # ─── Public Blog API ──────────────────────────────────────────────────────────
 
 @app.get("/api/blog")
@@ -304,7 +483,8 @@ def list_blog_posts(db: Session = Depends(get_db)):
             "excerpt": p.content[:150] + "..." if len(p.content) > 150 else p.content,
             "cover_image_url": p.cover_image_url,
             "status": p.status,
-            "published_at": p.published_at
+            "published_at": p.published_at,
+            "read_time": p.read_time
         }
         for p in posts
     ]
@@ -322,6 +502,11 @@ def get_blog_post(slug: str, db: Session = Depends(get_db)):
 
 # ─── Admin Blog API ───────────────────────────────────────────────────────────
 
+@app.get("/api/admin/blog")
+def list_blog_posts_admin(db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    posts = db.query(BlogPost).order_by(BlogPost.created_at.desc()).all()
+    return posts
+
 @app.post("/api/blog")
 def create_blog_post(data: BlogPostCreate, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
     # Check if slug unique
@@ -334,13 +519,21 @@ def create_blog_post(data: BlogPostCreate, db: Session = Depends(get_db), admin_
     
     published_at = datetime.datetime.utcnow() if data.status == 'published' else None
     
+    # Calculate read_time if not provided manually
+    read_time = data.read_time
+    if not read_time or read_time <= 0:
+        import math
+        words = len(data.content.split())
+        read_time = max(1, math.ceil(words / 200))
+
     post = BlogPost(
         title=data.title,
         slug=data.slug,
         content=data.content,
         cover_image_url=data.cover_image_url,
         status=data.status,
-        published_at=published_at
+        published_at=published_at,
+        read_time=read_time
     )
     db.add(post)
     db.commit()
@@ -379,6 +572,20 @@ def update_blog_post(id: int, data: BlogPostUpdate, db: Session = Depends(get_db
         elif data.status == 'draft':
             post.published_at = None
         post.status = data.status
+    
+    # Update read_time if manually provided, otherwise recalculate if content changed
+    if data.read_time is not None:
+        if data.read_time <= 0:
+            import math
+            content_to_use = data.content if data.content is not None else post.content
+            words = len(content_to_use.split())
+            post.read_time = max(1, math.ceil(words / 200))
+        else:
+            post.read_time = data.read_time
+    elif data.content is not None:
+        import math
+        words = len(data.content.split())
+        post.read_time = max(1, math.ceil(words / 200))
         
     db.commit()
     db.refresh(post)
@@ -676,3 +883,64 @@ def delete_skill(id: int, db: Session = Depends(get_db), admin_session = Depends
     db.delete(skill)
     db.commit()
     return {"status": "success", "message": "Skill deleted successfully"}
+
+# ─── Projects Endpoints ───────────────────────────────────────────────────────
+
+@app.get("/api/projects")
+def get_projects(db: Session = Depends(get_db)):
+    projects = db.query(Project).filter(Project.is_visible == True).order_by(Project.display_order.asc()).all()
+    return projects
+
+@app.get("/api/admin/projects")
+def get_admin_projects(db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    projects = db.query(Project).order_by(Project.display_order.asc()).all()
+    return projects
+
+@app.post("/api/projects")
+def create_project(data: ProjectCreate, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    project = Project(
+        title=data.title,
+        description=data.description,
+        github_url=data.github_url,
+        live_url=data.live_url,
+        tech_stack=data.tech_stack,
+        display_order=data.display_order if data.display_order is not None else 0,
+        is_visible=data.is_visible if data.is_visible is not None else True
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+@app.put("/api/projects/{id}")
+def update_project(id: int, data: ProjectUpdate, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    project = db.query(Project).filter(Project.id == id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    if data.title is not None:
+        project.title = data.title
+    if data.description is not None:
+        project.description = data.description
+    if data.github_url is not None:
+        project.github_url = data.github_url
+    if data.live_url is not None:
+        project.live_url = data.live_url
+    if data.tech_stack is not None:
+        project.tech_stack = data.tech_stack
+    if data.display_order is not None:
+        project.display_order = data.display_order
+    if data.is_visible is not None:
+        project.is_visible = data.is_visible
+    db.commit()
+    db.refresh(project)
+    return project
+
+@app.delete("/api/projects/{id}")
+def delete_project(id: int, db: Session = Depends(get_db), admin_session = Depends(get_current_admin)):
+    project = db.query(Project).filter(Project.id == id).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    db.delete(project)
+    db.commit()
+    return {"status": "success", "message": "Project deleted successfully"}
+
