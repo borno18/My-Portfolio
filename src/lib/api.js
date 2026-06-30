@@ -61,8 +61,48 @@ const hideWakeUpToast = () => {
 };
 
 window.fetch = async function (input, init) {
-    const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : '');
+    let url = typeof input === 'string' ? input : (input instanceof Request ? input.url : '');
     
+    // Intercept and rewrite absolute backend URLs to relative paths in production.
+    // This allows Vercel proxy rewrites to take effect, converting cross-site requests
+    // into Same-Site requests to bypass Safari ITP cookie blocking.
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    let modifiedInput = input;
+    
+    if (isProduction) {
+        const envPrefix = import.meta.env.VITE_API_URL || '';
+        const absolutePrefix = 'https://joydip-portfolio-backend.onrender.com';
+        
+        let newUrl = url;
+        if (envPrefix && url.startsWith(envPrefix)) {
+            newUrl = url.replace(envPrefix, '');
+        } else if (url.startsWith(absolutePrefix)) {
+            newUrl = url.replace(absolutePrefix, '');
+        }
+        
+        // Ensure leading slash for relative url
+        if (newUrl.startsWith('api/')) {
+            newUrl = '/' + newUrl;
+        }
+        
+        if (newUrl !== url) {
+            url = newUrl;
+            if (typeof input === 'string') {
+                modifiedInput = newUrl;
+            } else if (input instanceof Request) {
+                const requestInit = {};
+                const keys = [
+                    'method', 'headers', 'body', 'mode', 'credentials', 
+                    'cache', 'redirect', 'referrer', 'integrity', 'keepalive'
+                ];
+                keys.forEach(k => {
+                    try { requestInit[k] = input[k]; } catch(_) {}
+                });
+                modifiedInput = new Request(newUrl, requestInit);
+            }
+        }
+    }
+
     // Intercept requests directed to our FastAPI backend endpoints
     const isBackendApi = url.includes('/api/') && 
                          !url.includes('alfa-leetcode-api') && 
@@ -70,14 +110,14 @@ window.fetch = async function (input, init) {
                          !url.includes('codeforces.com');
                          
     if (!isBackendApi) {
-        return originalFetch(input, init);
+        return originalFetch(modifiedInput, init);
     }
 
     const executeFetch = (timeoutMs) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         
-        const fetchPromise = originalFetch(input, {
+        const fetchPromise = originalFetch(modifiedInput, {
             ...init,
             signal: controller.signal
         });

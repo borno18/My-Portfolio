@@ -261,6 +261,53 @@ const Admin = () => {
         }, 0);
     };
 
+    const handleDocxUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setLoading(true);
+        setError(null);
+        setSuccess(null);
+        try {
+            const loadMammoth = () => {
+                return new Promise((resolve, reject) => {
+                    if (window.mammoth) {
+                        resolve(window.mammoth);
+                        return;
+                    }
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js';
+                    script.onload = () => resolve(window.mammoth);
+                    script.onerror = () => reject(new Error('Failed to load document parser library'));
+                    document.head.appendChild(script);
+                });
+            };
+
+            const mammothLib = await loadMammoth();
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const arrayBuffer = event.target.result;
+                const result = await mammothLib.convertToHtml({ arrayBuffer });
+                
+                if (result.messages && result.messages.some(m => m.type === 'warning' && m.message.includes('image'))) {
+                    alert('Warning: Some images or unsupported drawing shapes in the document were skipped. Please upload them separately.');
+                }
+                
+                setBlogForm(prev => ({
+                    ...prev,
+                    content: prev.content ? prev.content + '\n\n' + result.value : result.value
+                }));
+                setSuccess('Document parsed successfully! Scroll content populated.');
+            };
+            reader.readAsArrayBuffer(file);
+        } catch (err) {
+            setError('Failed to parse docx file: ' + err.message);
+        } finally {
+            setLoading(false);
+            e.target.value = '';
+        }
+    };
+
     const handleSkillNameChange = (e) => {
         const name = e.target.value;
         setSkillForm(prev => {
@@ -993,12 +1040,12 @@ const Admin = () => {
                                                     />
                                                 ) : (
                                                     <div className="border border-dashed border-zinc-800 rounded-lg p-6 bg-zinc-900/20 text-center">
-                                                        <input 
-                                                            type="file" 
-                                                            accept="image/*" 
-                                                            onChange={handleImageUpload} 
-                                                            id="blog-image-file" 
-                                                            className="hidden" 
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={handleImageUpload}
+                                                            id="blog-image-file"
+                                                            className="hidden"
                                                         />
                                                         <label htmlFor="blog-image-file" className="cursor-pointer inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider bg-zinc-900 hover:bg-zinc-800 px-4 py-2 rounded-lg border border-solid border-zinc-800 transition-colors">
                                                             {uploadingImage ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
@@ -1015,7 +1062,7 @@ const Admin = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => insertFormatting('**', '**')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 font-bold transition-colors cursor-pointer"
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-bold transition-colors cursor-pointer"
                                                         title="Bold"
                                                     >
                                                         B
@@ -1023,11 +1070,84 @@ const Admin = () => {
                                                     <button
                                                         type="button"
                                                         onClick={() => insertFormatting('*', '*')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 italic font-main transition-colors cursor-pointer"
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 italic font-main transition-colors cursor-pointer"
                                                         title="Italic"
                                                     >
                                                         I
                                                     </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('<u>', '</u>')}
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 underline font-main transition-colors cursor-pointer"
+                                                        title="Underline"
+                                                    >
+                                                        U
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('~~', '~~')}
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 line-through font-main transition-colors cursor-pointer"
+                                                        title="Strikethrough"
+                                                    >
+                                                        S
+                                                    </button>
+                                                    <span className="w-px h-4 bg-zinc-800 mx-1"></span>
+                                                    <select
+                                                        onChange={(e) => {
+                                                            if (e.target.value) {
+                                                                insertFormatting(e.target.value);
+                                                                e.target.value = '';
+                                                            }
+                                                        }}
+                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none focus:border-orange/60"
+                                                    >
+                                                        <option value="">Header</option>
+                                                        <option value="# ">H1</option>
+                                                        <option value="## ">H2</option>
+                                                        <option value="### ">H3</option>
+                                                        <option value="#### ">H4</option>
+                                                    </select>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('- ')}
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-[10px]"
+                                                        title="Bullet List"
+                                                    >
+                                                        • List
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('1. ')}
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-[10px]"
+                                                        title="Numbered List"
+                                                    >
+                                                        1. List
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('> ')}
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-xs"
+                                                        title="Blockquote"
+                                                    >
+                                                        ”
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('[Link Text](', ')') }
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-[10px]"
+                                                        title="Insert Link"
+                                                    >
+                                                        Link
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('![Image Alt](', ')') }
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-[10px]"
+                                                        title="Insert Image Link"
+                                                    >
+                                                        Img
+                                                    </button>
+                                                    <span className="w-px h-4 bg-zinc-800 mx-1"></span>
                                                     <select
                                                         onChange={(e) => {
                                                             if (e.target.value) {
@@ -1063,6 +1183,22 @@ const Admin = () => {
                                                         <option value="'Georgia', serif">Georgia</option>
                                                         <option value="'Impact', Charcoal, sans-serif">Impact</option>
                                                     </select>
+                                                    <div className="flex items-center gap-1.5 ml-auto">
+                                                        <input
+                                                            type="file"
+                                                            id="docx-file-input"
+                                                            accept=".docx"
+                                                            onChange={handleDocxUpload}
+                                                            className="hidden"
+                                                        />
+                                                        <label
+                                                            htmlFor="docx-file-input"
+                                                            className="px-2.5 py-1 bg-orange/10 border border-solid border-orange/30 text-orange hover:bg-orange hover:text-black rounded transition-colors text-[10px] font-bold uppercase tracking-wider cursor-pointer"
+                                                            title="Import Microsoft Word document (.docx)"
+                                                        >
+                                                            Import .docx
+                                                        </label>
+                                                    </div>
                                                 </div>
                                                 <textarea 
                                                     id="blog-content-textarea"
