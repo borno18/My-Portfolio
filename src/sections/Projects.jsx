@@ -46,16 +46,16 @@ const Projects = () => {
                 </motion.div>
 
                 {/* GitHub Contributions Heatmap */}
-                <div className="max-w-5xl mx-auto mb-16 p-6 rounded-2xl border border-solid border-zinc-800/60 bg-zinc-900/20 backdrop-blur-md">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-4 text-center">Ninjutsu Activity Heatmap</h3>
+                <div className="max-w-5xl mx-auto mb-16 p-6 rounded-2xl border border-solid border-emerald-500/20 bg-black/95 shadow-[0_0_25px_rgba(57,211,83,0.08)]">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-4 text-center">Ninjutsu Activity Heatmap</h3>
                     <div className="overflow-x-auto flex justify-center py-2">
                         <img 
-                            src="https://ghchart.rshah.org/FF9800/borno18" 
+                            src="https://ghchart.rshah.org/39D353/borno18" 
                             alt="Joydip's GitHub Contributions Heatmap" 
-                            className="min-w-[650px] sm:min-w-0 max-h-[110px]"
+                            className="min-w-[650px] sm:min-w-0 max-h-[110px] p-2 bg-black rounded-lg"
                         />
                     </div>
-                    <p className="text-[10px] text-zinc-600 text-center mt-3 font-main">
+                    <p className="text-[10px] text-zinc-500 text-center mt-3 font-main">
                         Activity graph generated dynamically from github.com/borno18
                     </p>
                 </div>

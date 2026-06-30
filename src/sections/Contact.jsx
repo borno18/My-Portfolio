@@ -19,9 +19,9 @@ const Contact = () => {
 
     const sendEmail = async (e) => {
         e.preventDefault();
-        const name    = form.current.user_name?.value?.trim()  || '';
-        const email   = form.current.user_email?.value?.trim() || '';
-        const message = form.current.message?.value?.trim()    || '';
+        const name    = e.target.user_name?.value?.trim()  || '';
+        const email   = e.target.user_email?.value?.trim() || '';
+        const message = e.target.message?.value?.trim()    || '';
 
         if (!name || !email || !message) {
             setStatus('error');

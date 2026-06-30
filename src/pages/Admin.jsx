@@ -241,29 +241,59 @@ const Admin = () => {
         setBlogForm({ ...blogForm, title, slug });
     };
 
+    const insertFormatting = (before, after = '') => {
+        const textarea = document.getElementById('blog-content-textarea');
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const selected = text.substring(start, end);
+        const replacement = before + selected + after;
+
+        const newContent = text.substring(0, start) + replacement + text.substring(end);
+        setBlogForm({ ...blogForm, content: newContent });
+
+        // Restore focus and selection
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+        }, 0);
+    };
+
     const handleSkillNameChange = (e) => {
         const name = e.target.value;
         setSkillForm(prev => {
             const newForm = { ...prev, name };
             const query = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (query && simpleSlugs.length > 0) {
+            const aliasMap = {
+                'aws': 'amazonwebservices',
+                'gcp': 'googlecloud',
+                'js': 'javascript',
+                'ts': 'typescript',
+                'tailwind': 'tailwindcss',
+                'postgres': 'postgresql',
+                'reactjs': 'react'
+            };
+            const lookupQuery = aliasMap[query] || query;
+            if (lookupQuery && simpleSlugs.length > 0) {
                 let match = simpleSlugs.find(item => 
-                    item.brand.toLowerCase().replace(/[^a-z0-9]/g, '') === query || 
-                    item.slug === query
+                    item.brand.toLowerCase().replace(/[^a-z0-9]/g, '') === lookupQuery || 
+                    item.slug === lookupQuery
                 );
                 if (!match) {
                     match = simpleSlugs.find(item => 
-                        item.brand.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(query) ||
-                        item.slug.startsWith(query)
+                        item.brand.toLowerCase().replace(/[^a-z0-9]/g, '').startsWith(lookupQuery) ||
+                        item.slug.startsWith(lookupQuery)
                     );
                 }
                 if (!match) {
-                    match = simpleSlugs.find(item => item.slug.includes(query));
+                    match = simpleSlugs.find(item => item.slug.includes(lookupQuery));
                 }
                 if (match) {
                     newForm.icon_key = match.slug;
                 }
-            } else if (!query) {
+            } else if (!lookupQuery) {
                 newForm.icon_key = '';
             }
             return newForm;
@@ -981,11 +1011,65 @@ const Admin = () => {
 
                                             <div>
                                                 <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Markdown Content</label>
+                                                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-zinc-950/60 border border-solid border-zinc-800 border-b-0 rounded-t-lg font-main text-xs text-zinc-400">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('**', '**')}
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 font-bold transition-colors cursor-pointer"
+                                                        title="Bold"
+                                                    >
+                                                        B
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => insertFormatting('*', '*')}
+                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 italic font-main transition-colors cursor-pointer"
+                                                        title="Italic"
+                                                    >
+                                                        I
+                                                    </button>
+                                                    <select
+                                                        onChange={(e) => {
+                                                            if (e.target.value) {
+                                                                insertFormatting(`<span style="font-size: ${e.target.value};">`, '</span>');
+                                                                e.target.value = '';
+                                                            }
+                                                        }}
+                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none focus:border-orange/60"
+                                                    >
+                                                        <option value="">Font Size</option>
+                                                        <option value="12px">12px</option>
+                                                        <option value="14px">14px</option>
+                                                        <option value="16px">16px</option>
+                                                        <option value="18px">18px</option>
+                                                        <option value="20px">20px</option>
+                                                        <option value="24px">24px</option>
+                                                        <option value="32px">32px</option>
+                                                    </select>
+                                                    <select
+                                                        onChange={(e) => {
+                                                            if (e.target.value) {
+                                                                insertFormatting(`<span style="font-family: ${e.target.value};">`, '</span>');
+                                                                e.target.value = '';
+                                                            }
+                                                        }}
+                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none focus:border-orange/60"
+                                                    >
+                                                        <option value="">Font Family</option>
+                                                        <option value="sans-serif">Sans-Serif</option>
+                                                        <option value="serif">Serif</option>
+                                                        <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                                                        <option value="'Courier New', Courier, monospace">Monospace</option>
+                                                        <option value="'Georgia', serif">Georgia</option>
+                                                        <option value="'Impact', Charcoal, sans-serif">Impact</option>
+                                                    </select>
+                                                </div>
                                                 <textarea 
+                                                    id="blog-content-textarea"
                                                     rows={12}
                                                     value={blogForm.content}
                                                     onChange={(e) => setBlogForm({ ...blogForm, content: e.target.value })}
-                                                    className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-3 rounded-lg text-white font-main resize-y"
+                                                    className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-3 rounded-b-lg rounded-t-none text-white font-main resize-y focus:outline-none"
                                                     required
                                                 />
                                             </div>
@@ -1358,10 +1442,51 @@ const Admin = () => {
                                                         type="text"
                                                         value={skillForm.name}
                                                         onChange={handleSkillNameChange}
-                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white font-main"
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-2.5 rounded-lg text-white font-main focus:outline-none"
                                                         placeholder="e.g. Python"
                                                         required
                                                     />
+                                                    {/* Slugs Suggestion Drawer */}
+                                                    {skillForm.name && simpleSlugs.length > 0 && (
+                                                        <div className="mt-2 text-[11px] border border-solid border-zinc-800/80 rounded-lg p-2.5 bg-zinc-950/80 max-w-full">
+                                                            <span className="text-zinc-500 font-semibold block mb-1.5">Matching Icons (Click to apply):</span>
+                                                            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+                                                                {simpleSlugs
+                                                                    .filter(item => {
+                                                                        const q = skillForm.name.toLowerCase().trim();
+                                                                        const aliasMap = { 
+                                                                            'aws': 'amazonwebservices', 
+                                                                            'gcp': 'googlecloud', 
+                                                                            'js': 'javascript', 
+                                                                            'ts': 'typescript',
+                                                                            'tailwind': 'tailwindcss',
+                                                                            'postgres': 'postgresql',
+                                                                            'reactjs': 'react'
+                                                                        };
+                                                                        const mapped = aliasMap[q] || q;
+                                                                        return item.brand.toLowerCase().includes(mapped) || item.slug.includes(mapped);
+                                                                    })
+                                                                    .slice(0, 10)
+                                                                    .map(item => (
+                                                                        <button
+                                                                            key={item.slug}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSkillForm({ ...skillForm, icon_key: item.slug });
+                                                                                setPreviewIconFailed(false);
+                                                                            }}
+                                                                            className="bg-zinc-900/90 hover:bg-orange hover:text-black border border-solid border-zinc-800/80 text-zinc-300 px-2 py-0.5 rounded transition-colors text-[10px] font-semibold cursor-pointer"
+                                                                        >
+                                                                            {item.brand}
+                                                                        </button>
+                                                                    ))
+                                                                }
+                                                            </div>
+                                                            <div className="mt-1.5 text-[9px] text-zinc-600 flex justify-between">
+                                                                <span>Can't find it? Search on <a href="https://simpleicons.org" target="_blank" rel="noopener noreferrer" className="text-orange hover:underline font-bold">simpleicons.org</a></span>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Category</label>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Calendar, User, ArrowLeft, BookOpen } from 'lucide-react';
+import { Calendar, User, ArrowLeft, BookOpen, Share2 } from 'lucide-react';
 import Markdown from 'markdown-to-jsx';
 import { useMotionTransition, revealVariants } from '../lib/motion';
 import './BlogDetail.css';
@@ -38,6 +38,11 @@ const BlogDetail = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const transition = useMotionTransition('standard');
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        setIsMobile(/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
+    }, []);
 
     useEffect(() => {
         const fetchPost = async () => {
@@ -60,9 +65,15 @@ const BlogDetail = () => {
 
     const shareLinks = {
         facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
-        whatsapp: `https://api.whatsapp.com/send?text=${encodeURIComponent(shareTitle + ' ' + shareUrl)}`,
-        telegram: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`,
-        messenger: `https://www.facebook.com/dialog/send?link=${encodeURIComponent(shareUrl)}&app_id=291494419107518&redirect_uri=${encodeURIComponent(shareUrl)}`
+        whatsapp: isMobile 
+            ? `whatsapp://send?text=${encodeURIComponent(shareTitle + ' ' + shareUrl)}`
+            : `https://api.whatsapp.com/send?text=${encodeURIComponent(shareTitle + ' ' + shareUrl)}`,
+        telegram: isMobile
+            ? `tg://msg_url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`
+            : `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`,
+        messenger: isMobile
+            ? `fb-messenger://share/?link=${encodeURIComponent(shareUrl)}`
+            : `https://www.facebook.com/dialog/send?link=${encodeURIComponent(shareUrl)}&app_id=291494419107518&redirect_uri=${encodeURIComponent(shareUrl)}`
     };
 
     return (
@@ -139,6 +150,20 @@ const BlogDetail = () => {
                                 <a href={shareLinks.messenger} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-900/80 border border-solid border-zinc-800 text-zinc-400 hover:text-white hover:bg-[#00B2FF]/20 hover:border-[#00B2FF]/40 transition-all duration-300" title="Share on Messenger">
                                     <MessengerIcon />
                                 </a>
+                                {navigator.share && (
+                                    <button 
+                                        onClick={() => {
+                                            navigator.share({
+                                                title: shareTitle,
+                                                url: shareUrl
+                                            }).catch(err => console.log('Error sharing:', err));
+                                        }}
+                                        className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-900/80 border border-solid border-zinc-800 text-zinc-400 hover:text-white hover:bg-orange/20 hover:border-orange/40 transition-all duration-300 cursor-pointer animate-pulse"
+                                        title="Share via device"
+                                    >
+                                        <Share2 size={13} />
+                                    </button>
+                                )}
                             </div>
                         </header>
 
