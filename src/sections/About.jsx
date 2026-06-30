@@ -107,12 +107,12 @@ const About = () => {
     }, []);
 
     // Group skills by category, preserving display_order
-    const grouped = skills.reduce((acc, skill) => {
+    const grouped = Array.isArray(skills) ? skills.reduce((acc, skill) => {
         const cat = skill.category || 'General';
         if (!acc[cat]) acc[cat] = [];
         acc[cat].push(skill);
         return acc;
-    }, {});
+    }, {}) : {};
 
     const categoryOrder = ['Machine Learning', 'Programming', 'Web Development', 'Data Science', 'Tools & Platforms'];
     const sortedCategories = [

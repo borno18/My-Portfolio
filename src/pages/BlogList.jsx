@@ -19,7 +19,7 @@ const BlogList = () => {
                 const res = await fetch(`${API_BASE}/api/blog`);
                 if (!res.ok) throw new Error('Failed to fetch posts');
                 const data = await res.json();
-                setPosts(data);
+                setPosts(Array.isArray(data) ? data : []);
             } catch (err) {
                 setError(err.message);
             } finally {

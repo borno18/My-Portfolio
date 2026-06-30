@@ -18,7 +18,7 @@ const Projects = () => {
                 const res = await fetch(`${API_BASE}/api/projects`);
                 if (res.ok) {
                     const data = await res.json();
-                    if (data && data.length > 0) {
+                    if (Array.isArray(data) && data.length > 0) {
                         setProjects(data);
                     }
                 }

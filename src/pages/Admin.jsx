@@ -149,42 +149,42 @@ const Admin = () => {
             const resBlog = await fetch(`${API_BASE}/api/admin/blog`, { credentials: 'include' });
             if (resBlog.ok) {
                 const data = await resBlog.json();
-                setBlogs(data);
+                setBlogs(Array.isArray(data) ? data : []);
             }
 
             // Load photos
             const resPhotos = await fetch(`${API_BASE}/api/photos`);
             if (resPhotos.ok) {
                 const data = await resPhotos.json();
-                setPhotos(data);
+                setPhotos(Array.isArray(data) ? data : []);
             }
 
             // Load notes (authenticated)
             const resNotes = await fetch(`${API_BASE}/api/notes`, { credentials: 'include' });
             if (resNotes.ok) {
                 const data = await resNotes.json();
-                setNotes(data);
+                setNotes(Array.isArray(data) ? data : []);
             }
 
             // Load skills (all — admin view)
             const resSkills = await fetch(`${API_BASE}/api/skills?all=true`, { credentials: 'include' });
             if (resSkills.ok) {
                 const data = await resSkills.json();
-                setSkills(data);
+                setSkills(Array.isArray(data) ? data : []);
             }
 
             // Load contact messages (authenticated)
             const resMsg = await fetch(`${API_BASE}/api/admin/messages`, { credentials: 'include' });
             if (resMsg.ok) {
                 const data = await resMsg.json();
-                setMessages(data);
+                setMessages(Array.isArray(data) ? data : []);
             }
 
             // Load curated projects
             const resProj = await fetch(`${API_BASE}/api/admin/projects`, { credentials: 'include' });
             if (resProj.ok) {
                 const data = await resProj.json();
-                setProjects(data);
+                setProjects(Array.isArray(data) ? data : []);
             }
         } catch (err) {
             console.error('Error fetching admin dashboard data:', err);
