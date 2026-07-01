@@ -102,7 +102,10 @@ const BlogList = () => {
                                             <Link to={`/blog/${post.slug}`} className="blog-post-title">{post.title}</Link>
                                         </h2>
                                         <p className="text-zinc-400 text-sm line-clamp-3 mb-4">
-                                            {post.excerpt}
+                                            {post.excerpt
+                                                ? post.excerpt.replace(/<[^>]*>/g, '').replace(/[\*\#\_\`]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').trim()
+                                                : ''
+                                            }
                                         </p>
                                     </div>
                                     <Link to={`/blog/${post.slug}`} className="inline-flex items-center gap-1 text-xs font-bold text-orange uppercase tracking-wider hover:opacity-80 transition-opacity">

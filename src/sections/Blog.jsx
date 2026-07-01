@@ -60,9 +60,14 @@ const Blog = () => {
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-12">
                             {posts.map((post, idx) => {
+                                const stripFormatting = (text) => text
+                                    .replace(/<[^>]*>/g, '')      // strip HTML tags
+                                    .replace(/[\*\#\_\`]/g, '')   // strip markdown chars
+                                    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // strip md links
+                                    .trim();
                                 const plainExcerpt = post.excerpt 
-                                    ? post.excerpt.replace(/[\*\#\_\`]/g, '') 
-                                    : post.content.replace(/[\*\#\_\`]/g, '').slice(0, 100) + '...';
+                                    ? stripFormatting(post.excerpt).slice(0, 120)
+                                    : stripFormatting(post.content).slice(0, 120) + '...';
                                     
                                 return (
                                     <motion.article

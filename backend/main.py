@@ -319,12 +319,20 @@ class ContactMessageCreate(BaseModel):
     message: str
 
 # ─── Auth Dependency ──────────────────────────────────────────────────────────
+
 def get_current_admin(request: Request):
-    token = request.cookies.get("session_token")
+    # 1. Try Authorization: Bearer header first (for Safari and cross-browser)
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[len("Bearer "):].strip()
+    else:
+        # 2. Fall back to cookie (for Chrome and existing sessions)
+        token = request.cookies.get("session_token")
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session cookie not found"
+            detail="Authentication required: no token or session cookie found"
         )
     payload = verify_access_token(token)
     if not payload:
@@ -355,9 +363,7 @@ def login(request: Request, data: LoginRequest, response: Response, db: Session 
     # Generate token
     token = create_access_token({"sub": "admin"})
     
-    # Set HTTP-only Cookie
-    # Note: Secure flag is true in production, but allowed in localhost on Chrome
-    # SameSite=Strict makes it highly secure
+    # Set HTTP-only Cookie (works in Chrome, Firefox, etc.)
     response.set_cookie(
         key="session_token",
         value=token,
@@ -367,7 +373,8 @@ def login(request: Request, data: LoginRequest, response: Response, db: Session 
         max_age=12 * 3600, # 12 hours
         expires=12 * 3600
     )
-    return {"status": "success", "message": "Logged in successfully"}
+    # Also return token in response body for localStorage-based auth (Safari, cross-origin)
+    return {"status": "success", "message": "Logged in successfully", "token": token}
 
 @app.post("/api/auth/logout")
 def logout(response: Response):
@@ -381,7 +388,12 @@ def logout(response: Response):
 
 @app.get("/api/auth/me")
 def check_auth(request: Request):
-    token = request.cookies.get("session_token")
+    # Try Authorization: Bearer header first (Safari/cross-browser)
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[len("Bearer "):].strip()
+    else:
+        token = request.cookies.get("session_token")
     if not token or not verify_access_token(token):
         return {"authenticated": False}
     return {"authenticated": True}

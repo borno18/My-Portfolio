@@ -7,7 +7,9 @@ import {
     Mail, MailOpen, Briefcase
 } from 'lucide-react';
 import { useMotionTransition, revealVariants } from '../lib/motion';
+import Markdown from 'markdown-to-jsx';
 import './Admin.css';
+
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 // Cloudinary configuration from import.meta.env
@@ -54,10 +56,28 @@ const Admin = () => {
     const [uploadMode, setUploadMode] = useState('url'); // 'url' | 'file'
     const [showCustomCategoryInput, setShowCustomCategoryInput] = useState(false);
 
+    // Blog editor state
+    const [showPreview, setShowPreview] = useState(false);
+    const [textColor, setTextColor] = useState('#f97316');
+
+    // Safari/cross-browser auth: store token in localStorage as fallback
+    const [authToken, setAuthToken] = useState(() => localStorage.getItem('admin_token') || null);
+
+    // Returns headers with Authorization bearer for Safari compatibility
+    const getAuthHeaders = () => {
+        const headers = { 'Content-Type': 'application/json' };
+        if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+        return headers;
+    };
+    const getCredentials = () => 'include';
+
     useEffect(() => {
         const checkSession = async () => {
             try {
+                const storedToken = localStorage.getItem('admin_token');
+                const headers = storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {};
                 const res = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers,
                     credentials: 'include'
                 });
                 const data = await res.json();
@@ -65,6 +85,8 @@ const Admin = () => {
                     setAuthenticated(true);
                     loadAllData();
                 } else {
+                    // Clear stale stored token if server says not authenticated
+                    localStorage.removeItem('admin_token');
                     setAuthChecking(false);
                 }
             } catch (err) {
@@ -144,9 +166,11 @@ const Admin = () => {
 
     const loadAllData = async () => {
         setAuthChecking(false);
+        const storedToken = localStorage.getItem('admin_token');
+        const authH = storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {};
         try {
             // Load blogs
-            const resBlog = await fetch(`${API_BASE}/api/admin/blog`, { credentials: 'include' });
+            const resBlog = await fetch(`${API_BASE}/api/admin/blog`, { headers: authH, credentials: 'include' });
             if (resBlog.ok) {
                 const data = await resBlog.json();
                 setBlogs(Array.isArray(data) ? data : []);
@@ -160,28 +184,28 @@ const Admin = () => {
             }
 
             // Load notes (authenticated)
-            const resNotes = await fetch(`${API_BASE}/api/notes`, { credentials: 'include' });
+            const resNotes = await fetch(`${API_BASE}/api/notes`, { headers: authH, credentials: 'include' });
             if (resNotes.ok) {
                 const data = await resNotes.json();
                 setNotes(Array.isArray(data) ? data : []);
             }
 
             // Load skills (all — admin view)
-            const resSkills = await fetch(`${API_BASE}/api/skills?all=true`, { credentials: 'include' });
+            const resSkills = await fetch(`${API_BASE}/api/skills?all=true`, { headers: authH, credentials: 'include' });
             if (resSkills.ok) {
                 const data = await resSkills.json();
                 setSkills(Array.isArray(data) ? data : []);
             }
 
             // Load contact messages (authenticated)
-            const resMsg = await fetch(`${API_BASE}/api/admin/messages`, { credentials: 'include' });
+            const resMsg = await fetch(`${API_BASE}/api/admin/messages`, { headers: authH, credentials: 'include' });
             if (resMsg.ok) {
                 const data = await resMsg.json();
                 setMessages(Array.isArray(data) ? data : []);
             }
 
             // Load curated projects
-            const resProj = await fetch(`${API_BASE}/api/admin/projects`, { credentials: 'include' });
+            const resProj = await fetch(`${API_BASE}/api/admin/projects`, { headers: authH, credentials: 'include' });
             if (resProj.ok) {
                 const data = await resProj.json();
                 setProjects(Array.isArray(data) ? data : []);
@@ -209,6 +233,12 @@ const Admin = () => {
                 }
                 throw new Error(errData.detail || errData.error || 'Incorrect admin password');
             }
+            const loginData = await res.json();
+            // Store token in localStorage for Safari/cross-browser compatibility
+            if (loginData.token) {
+                localStorage.setItem('admin_token', loginData.token);
+                setAuthToken(loginData.token);
+            }
             setAuthenticated(true);
             await loadAllData();
         } catch (err) {
@@ -220,10 +250,15 @@ const Admin = () => {
 
     const handleLogout = async () => {
         try {
+            const token = localStorage.getItem('admin_token');
             await fetch(`${API_BASE}/api/auth/logout`, {
                 method: 'POST',
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                 credentials: 'include'
             });
+            // Clear stored token
+            localStorage.removeItem('admin_token');
+            setAuthToken(null);
             setAuthenticated(false);
             setBlogs([]);
             setPhotos([]);
@@ -249,15 +284,61 @@ const Admin = () => {
         const end = textarea.selectionEnd;
         const text = textarea.value;
         const selected = text.substring(start, end);
-        const replacement = before + selected + after;
 
-        const newContent = text.substring(0, start) + replacement + text.substring(end);
-        setBlogForm({ ...blogForm, content: newContent });
+        let newContent;
+        let newStart, newEnd;
+
+        if (after) {
+            // Wrap-style formatting (e.g. **bold**, *italic*, ~~strike~~, `code`, <u></u>, <mark></mark>)
+            // Toggle: check if selected text is already wrapped
+            const alreadyWrapped =
+                text.substring(start - before.length, start) === before &&
+                text.substring(end, end + after.length) === after;
+
+            if (alreadyWrapped) {
+                // Strip the markers
+                newContent = text.substring(0, start - before.length) + selected + text.substring(end + after.length);
+                newStart = start - before.length;
+                newEnd = newStart + selected.length;
+            } else {
+                // Also check if selected text itself starts/ends with markers (selected the markers too)
+                const innerAlreadyWrapped = selected.startsWith(before) && selected.endsWith(after) && selected.length > before.length + after.length;
+                if (innerAlreadyWrapped) {
+                    const inner = selected.slice(before.length, selected.length - after.length);
+                    newContent = text.substring(0, start) + inner + text.substring(end);
+                    newStart = start;
+                    newEnd = start + inner.length;
+                } else {
+                    // Apply wrap
+                    newContent = text.substring(0, start) + before + selected + after + text.substring(end);
+                    newStart = start + before.length;
+                    newEnd = newStart + selected.length;
+                }
+            }
+        } else {
+            // Prefix-style formatting (e.g. # heading, - list, > quote)
+            // Insert at beginning of current line
+            const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+            const lineContent = text.substring(lineStart);
+            if (lineContent.startsWith(before)) {
+                // Toggle off
+                newContent = text.substring(0, lineStart) + lineContent.substring(before.length);
+                newStart = Math.max(lineStart, start - before.length);
+                newEnd = Math.max(lineStart, end - before.length);
+            } else {
+                // Toggle on
+                newContent = text.substring(0, lineStart) + before + text.substring(lineStart);
+                newStart = start + before.length;
+                newEnd = end + before.length;
+            }
+        }
+
+        setBlogForm(prev => ({ ...prev, content: newContent }));
 
         // Restore focus and selection
         setTimeout(() => {
             textarea.focus();
-            textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+            textarea.setSelectionRange(newStart, newEnd);
         }, 0);
     };
 
@@ -438,11 +519,13 @@ const Admin = () => {
         }
     };
 
-    // ──â”€ Blog CRUD Operations ──────────────────────────────────────────────────
+    // ── Blog CRUD Operations ──────────────────────────────────────────────────
     const saveBlog = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        const storedToken = localStorage.getItem('admin_token');
+        const authH = { 'Content-Type': 'application/json', ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}) };
         try {
             const isEditing = editingItem && editingItem.type === 'blog';
             const url = isEditing 
@@ -457,7 +540,7 @@ const Admin = () => {
 
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: authH,
                 body: JSON.stringify(payload),
                 credentials: 'include'
             });
@@ -468,7 +551,7 @@ const Admin = () => {
             }
 
             // Reload blogs
-            const resBlogs = await fetch(`${API_BASE}/api/admin/blog`, { credentials: 'include' });
+            const resBlogs = await fetch(`${API_BASE}/api/admin/blog`, { headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}, credentials: 'include' });
             const data = await resBlogs.json();
             setBlogs(data);
 
@@ -485,9 +568,11 @@ const Admin = () => {
 
     const deleteBlog = async (id) => {
         if (!confirm('Are you sure you want to delete this blog post?')) return;
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/blog/${id}`, {
                 method: 'DELETE',
+                headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {},
                 credentials: 'include'
             });
             if (res.ok) {
@@ -499,11 +584,13 @@ const Admin = () => {
         }
     };
 
-    // ──â”€ Photos CRUD Operations ────────────────────────────────────────────────
+    // ── Photos CRUD Operations ────────────────────────────────────────────────
     const savePhoto = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        const storedToken = localStorage.getItem('admin_token');
+        const authH = { 'Content-Type': 'application/json', ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}) };
         try {
             const isEditing = editingItem && editingItem.type === 'photo';
             const url = isEditing 
@@ -517,7 +604,7 @@ const Admin = () => {
 
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: authH,
                 body: JSON.stringify(payload),
                 credentials: 'include'
             });
@@ -546,9 +633,11 @@ const Admin = () => {
 
     const deletePhoto = async (id) => {
         if (!confirm('Are you sure you want to delete this photo?')) return;
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/photos/${id}`, {
                 method: 'DELETE',
+                headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {},
                 credentials: 'include'
             });
             if (res.ok) {
@@ -560,11 +649,13 @@ const Admin = () => {
         }
     };
 
-    // ──â”€ Notes CRUD Operations ────────────────────────────────────────────────â”€
+    // ── Notes CRUD Operations ──────────────────────────────────────────────────
     const saveNote = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        const storedToken = localStorage.getItem('admin_token');
+        const authH = { 'Content-Type': 'application/json', ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}) };
         try {
             const isEditing = editingItem && editingItem.type === 'note';
             const url = isEditing 
@@ -574,7 +665,7 @@ const Admin = () => {
 
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: authH,
                 body: JSON.stringify(noteForm),
                 credentials: 'include'
             });
@@ -585,7 +676,7 @@ const Admin = () => {
             }
 
             // Reload notes
-            const resNotes = await fetch(`${API_BASE}/api/notes`, { credentials: 'include' });
+            const resNotes = await fetch(`${API_BASE}/api/notes`, { headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}, credentials: 'include' });
             const data = await resNotes.json();
             setNotes(data);
 
@@ -602,9 +693,11 @@ const Admin = () => {
 
     const deleteNote = async (id) => {
         if (!confirm('Are you sure you want to delete this note?')) return;
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/notes/${id}`, {
                 method: 'DELETE',
+                headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {},
                 credentials: 'include'
             });
             if (res.ok) {
@@ -616,11 +709,13 @@ const Admin = () => {
         }
     };
 
-    // ──â”€ Skills CRUD Operations ────────────────────────────────────────────────
+    // ── Skills CRUD Operations ────────────────────────────────────────────────
     const saveSkill = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        const storedToken = localStorage.getItem('admin_token');
+        const authH = { 'Content-Type': 'application/json', ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}) };
         try {
             const isEditing = editingItem && editingItem.type === 'skill';
             const url = isEditing
@@ -630,7 +725,7 @@ const Admin = () => {
 
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: authH,
                 body: JSON.stringify({ ...skillForm, display_order: parseInt(skillForm.display_order) || 0 }),
                 credentials: 'include'
             });
@@ -640,7 +735,7 @@ const Admin = () => {
                 throw new Error(err.detail || 'Failed to save skill');
             }
 
-            const resSkills = await fetch(`${API_BASE}/api/skills?all=true`, { credentials: 'include' });
+            const resSkills = await fetch(`${API_BASE}/api/skills?all=true`, { headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}, credentials: 'include' });
             const data = await resSkills.json();
             setSkills(data);
 
@@ -657,9 +752,11 @@ const Admin = () => {
 
     const deleteSkill = async (id) => {
         if (!confirm('Are you sure you want to delete this skill?')) return;
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/skills/${id}`, {
                 method: 'DELETE',
+                headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {},
                 credentials: 'include'
             });
             if (res.ok) {
@@ -673,10 +770,11 @@ const Admin = () => {
 
     const toggleSkillStatus = async (skill) => {
         const newStatus = skill.status === 'mastered' ? 'learning' : 'mastered';
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/skills/${skill.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}) },
                 body: JSON.stringify({ status: newStatus }),
                 credentials: 'include'
             });
@@ -690,10 +788,11 @@ const Admin = () => {
 
     const toggleSkillVisibility = async (skill) => {
         const newVisibility = !skill.is_visible;
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/skills/${skill.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}) },
                 body: JSON.stringify({ is_visible: newVisibility }),
                 credentials: 'include'
             });
@@ -710,6 +809,8 @@ const Admin = () => {
         e.preventDefault();
         setLoading(true);
         setError(null);
+        const storedToken = localStorage.getItem('admin_token');
+        const authH = { 'Content-Type': 'application/json', ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}) };
         try {
             const isEditing = editingItem && editingItem.type === 'project';
             const url = isEditing 
@@ -719,7 +820,7 @@ const Admin = () => {
 
             const res = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: authH,
                 body: JSON.stringify(projectForm),
                 credentials: 'include'
             });
@@ -730,7 +831,7 @@ const Admin = () => {
             }
 
             // Reload projects
-            const resProjects = await fetch(`${API_BASE}/api/admin/projects`, { credentials: 'include' });
+            const resProjects = await fetch(`${API_BASE}/api/admin/projects`, { headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}, credentials: 'include' });
             const data = await resProjects.json();
             setProjects(data);
 
@@ -748,9 +849,11 @@ const Admin = () => {
 
     const deleteProject = async (id) => {
         if (!confirm('Are you sure you want to delete this project?')) return;
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/projects/${id}`, {
                 method: 'DELETE',
+                headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {},
                 credentials: 'include'
             });
             if (res.ok) {
@@ -763,9 +866,11 @@ const Admin = () => {
     };
 
     const toggleMessageRead = async (id) => {
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/admin/messages/${id}/read`, {
                 method: 'PATCH',
+                headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {},
                 credentials: 'include'
             });
             if (res.ok) {
@@ -781,9 +886,11 @@ const Admin = () => {
 
     const deleteMessage = async (id) => {
         if (!confirm('Are you sure you want to delete this message?')) return;
+        const storedToken = localStorage.getItem('admin_token');
         try {
             const res = await fetch(`${API_BASE}/api/admin/messages/${id}`, {
                 method: 'DELETE',
+                headers: storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {},
                 credentials: 'include'
             });
             if (res.ok) {
@@ -806,10 +913,12 @@ const Admin = () => {
         setLoading(true);
         setError(null);
         setSuccess(null);
+        const storedToken = localStorage.getItem('admin_token');
+        const authH = { 'Content-Type': 'application/json', ...(storedToken ? { 'Authorization': `Bearer ${storedToken}` } : {}) };
         try {
             const res = await fetch(`${API_BASE}/api/auth/password`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: authH,
                 body: JSON.stringify(passwordForm),
                 credentials: 'include'
             });
@@ -1057,49 +1166,34 @@ const Admin = () => {
                                             </div>
 
                                             <div>
-                                                <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Markdown Content</label>
-                                                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-zinc-950/60 border border-solid border-zinc-800 border-b-0 rounded-t-lg font-main text-xs text-zinc-400">
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <label className="block text-xs uppercase tracking-wider text-zinc-500">Markdown Content</label>
                                                     <button
                                                         type="button"
-                                                        onClick={() => insertFormatting('**', '**')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-bold transition-colors cursor-pointer"
-                                                        title="Bold"
+                                                        onClick={() => setShowPreview(p => !p)}
+                                                        className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-lg border border-solid transition-colors cursor-pointer ${showPreview ? 'bg-orange text-black border-orange' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white'}`}
                                                     >
-                                                        B
+                                                        {showPreview ? '✏ Edit' : '👁 Preview'}
                                                     </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertFormatting('*', '*')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 italic font-main transition-colors cursor-pointer"
-                                                        title="Italic"
-                                                    >
-                                                        I
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertFormatting('<u>', '</u>')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 underline font-main transition-colors cursor-pointer"
-                                                        title="Underline"
-                                                    >
-                                                        U
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertFormatting('~~', '~~')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 line-through font-main transition-colors cursor-pointer"
-                                                        title="Strikethrough"
-                                                    >
-                                                        S
-                                                    </button>
-                                                    <span className="w-px h-4 bg-zinc-800 mx-1"></span>
+                                                </div>
+                                                {/* Toolbar */}
+
+                                                <div className="flex flex-wrap items-center gap-1 p-2 bg-zinc-950/60 border border-solid border-zinc-800 border-b-0 rounded-t-lg font-main text-xs text-zinc-400">
+                                                    {/* Text style buttons */}
+                                                    <button type="button" onClick={() => insertFormatting('**', '**')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 font-bold transition-colors cursor-pointer" title="Bold (toggle)">B</button>
+                                                    <button type="button" onClick={() => insertFormatting('*', '*')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 italic transition-colors cursor-pointer" title="Italic (toggle)">I</button>
+                                                    <button type="button" onClick={() => insertFormatting('<u>', '</u>')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 underline transition-colors cursor-pointer" title="Underline (toggle)">U</button>
+                                                    <button type="button" onClick={() => insertFormatting('~~', '~~')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 line-through transition-colors cursor-pointer" title="Strikethrough (toggle)">S</button>
+                                                    <button type="button" onClick={() => insertFormatting('<mark>', '</mark>')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer" title="Highlight (toggle)" style={{backgroundColor: 'rgba(253,224,71,0.15)', color: '#fde047'}}>▐</button>
+                                                    <button type="button" onClick={() => insertFormatting('<sup>', '</sup>')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Superscript">x²</button>
+                                                    <button type="button" onClick={() => insertFormatting('<sub>', '</sub>')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Subscript">x₂</button>
+
+                                                    <span className="w-px h-4 bg-zinc-800 mx-0.5"></span>
+
+                                                    {/* Headers */}
                                                     <select
-                                                        onChange={(e) => {
-                                                            if (e.target.value) {
-                                                                insertFormatting(e.target.value);
-                                                                e.target.value = '';
-                                                            }
-                                                        }}
-                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none focus:border-orange/60"
+                                                        onChange={(e) => { if (e.target.value) { insertFormatting(e.target.value); e.target.value = ''; } }}
+                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none"
                                                     >
                                                         <option value="">Header</option>
                                                         <option value="# ">H1</option>
@@ -1107,57 +1201,36 @@ const Admin = () => {
                                                         <option value="### ">H3</option>
                                                         <option value="#### ">H4</option>
                                                     </select>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertFormatting('- ')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-[10px]"
-                                                        title="Bullet List"
-                                                    >
-                                                        • List
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertFormatting('1. ')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-[10px]"
-                                                        title="Numbered List"
-                                                    >
-                                                        1. List
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertFormatting('> ')}
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-xs"
-                                                        title="Blockquote"
-                                                    >
-                                                        ”
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertFormatting('[Link Text](', ')') }
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-[10px]"
-                                                        title="Insert Link"
-                                                    >
-                                                        Link
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => insertFormatting('![Image Alt](', ')') }
-                                                        className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-850 font-main transition-colors cursor-pointer text-[10px]"
-                                                        title="Insert Image Link"
-                                                    >
-                                                        Img
-                                                    </button>
-                                                    <span className="w-px h-4 bg-zinc-800 mx-1"></span>
+
+                                                    {/* Lists & structure */}
+                                                    <button type="button" onClick={() => insertFormatting('- ')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Bullet List">• List</button>
+                                                    <button type="button" onClick={() => insertFormatting('1. ')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Numbered List">1. List</button>
+                                                    <button type="button" onClick={() => insertFormatting('> ')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-xs" title="Blockquote">"</button>
+                                                    <button type="button" onClick={() => { const ta = document.getElementById('blog-content-textarea'); if (!ta) return; const pos = ta.selectionStart; const cur = blogForm.content; setBlogForm(prev => ({ ...prev, content: cur.substring(0, pos) + '\n\n---\n\n' + cur.substring(pos) })); }} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Horizontal Rule">─ Rule</button>
+
+                                                    {/* Code */}
+                                                    <button type="button" onClick={() => insertFormatting('`', '`')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer font-mono text-[10px]" title="Inline Code (toggle)">`code`</button>
+                                                    <button type="button" onClick={() => insertFormatting('```\n', '\n```')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer font-mono text-[10px]" title="Code Block">``` Block</button>
+
+                                                    {/* Links */}
+                                                    <button type="button" onClick={() => insertFormatting('[Link Text](', ')')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Insert Link">🔗 Link</button>
+                                                    <button type="button" onClick={() => insertFormatting('![Alt](', ')')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Insert Image">🖼 Img</button>
+
+                                                    <span className="w-px h-4 bg-zinc-800 mx-0.5"></span>
+
+                                                    {/* Alignment */}
+                                                    <button type="button" onClick={() => insertFormatting('<div style="text-align:left">', '</div>')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Align Left">≡L</button>
+                                                    <button type="button" onClick={() => insertFormatting('<div style="text-align:center">', '</div>')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Align Center">≡C</button>
+                                                    <button type="button" onClick={() => insertFormatting('<div style="text-align:right">', '</div>')} className="px-2.5 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]" title="Align Right">≡R</button>
+
+                                                    <span className="w-px h-4 bg-zinc-800 mx-0.5"></span>
+
+                                                    {/* Font size */}
                                                     <select
-                                                        onChange={(e) => {
-                                                            if (e.target.value) {
-                                                                insertFormatting(`<span style="font-size: ${e.target.value};">`, '</span>');
-                                                                e.target.value = '';
-                                                            }
-                                                        }}
-                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none focus:border-orange/60"
+                                                        onChange={(e) => { if (e.target.value) { insertFormatting(`<span style="font-size: ${e.target.value};">`, '</span>'); e.target.value = ''; } }}
+                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none"
                                                     >
-                                                        <option value="">Font Size</option>
+                                                        <option value="">Size</option>
                                                         <option value="12px">12px</option>
                                                         <option value="14px">14px</option>
                                                         <option value="16px">16px</option>
@@ -1165,51 +1238,95 @@ const Admin = () => {
                                                         <option value="20px">20px</option>
                                                         <option value="24px">24px</option>
                                                         <option value="32px">32px</option>
+                                                        <option value="40px">40px</option>
                                                     </select>
+
+                                                    {/* Font family */}
                                                     <select
-                                                        onChange={(e) => {
-                                                            if (e.target.value) {
-                                                                insertFormatting(`<span style="font-family: ${e.target.value};">`, '</span>');
-                                                                e.target.value = '';
-                                                            }
-                                                        }}
-                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none focus:border-orange/60"
+                                                        onChange={(e) => { if (e.target.value) { insertFormatting(`<span style="font-family: ${e.target.value};">`, '</span>'); e.target.value = ''; } }}
+                                                        className="bg-zinc-900 border border-solid border-zinc-800 text-zinc-400 hover:text-white rounded px-2 py-1 text-xs cursor-pointer focus:outline-none"
                                                     >
-                                                        <option value="">Font Family</option>
+                                                        <option value="">Font</option>
                                                         <option value="sans-serif">Sans-Serif</option>
                                                         <option value="serif">Serif</option>
                                                         <option value="'Times New Roman', Times, serif">Times New Roman</option>
                                                         <option value="'Courier New', Courier, monospace">Monospace</option>
                                                         <option value="'Georgia', serif">Georgia</option>
                                                         <option value="'Impact', Charcoal, sans-serif">Impact</option>
+                                                        <option value="'Arial', sans-serif">Arial</option>
+                                                        <option value="'Verdana', sans-serif">Verdana</option>
                                                     </select>
-                                                    <div className="flex items-center gap-1.5 ml-auto">
+
+                                                    {/* Text color */}
+                                                    <div className="flex items-center gap-1" title="Text Color">
                                                         <input
-                                                            type="file"
-                                                            id="docx-file-input"
-                                                            accept=".docx"
-                                                            onChange={handleDocxUpload}
-                                                            className="hidden"
+                                                            type="color"
+                                                            value={textColor}
+                                                            onChange={(e) => setTextColor(e.target.value)}
+                                                            className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 p-0"
+                                                            title="Pick text color"
                                                         />
-                                                        <label
-                                                            htmlFor="docx-file-input"
-                                                            className="px-2.5 py-1 bg-orange/10 border border-solid border-orange/30 text-orange hover:bg-orange hover:text-black rounded transition-colors text-[10px] font-bold uppercase tracking-wider cursor-pointer"
-                                                            title="Import Microsoft Word document (.docx)"
-                                                        >
-                                                            Import .docx
-                                                        </label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => insertFormatting(`<span style="color:${textColor};">`, '</span>')}
+                                                            className="px-2 py-1 bg-zinc-900 border border-solid border-zinc-800 rounded hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer text-[10px]"
+                                                            title="Apply color to selected text"
+                                                        >A</button>
+                                                    </div>
+
+                                                    {/* Clear formatting */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const ta = document.getElementById('blog-content-textarea');
+                                                            if (!ta) return;
+                                                            const start = ta.selectionStart;
+                                                            const end = ta.selectionEnd;
+                                                            const text = blogForm.content;
+                                                            const selected = text.substring(start, end);
+                                                            // Strip markdown markers and inline HTML tags
+                                                            const cleaned = selected
+                                                                .replace(/\*\*(.+?)\*\*/g, '$1')
+                                                                .replace(/\*(.+?)\*/g, '$1')
+                                                                .replace(/~~(.+?)~~/g, '$1')
+                                                                .replace(/`(.+?)`/g, '$1')
+                                                                .replace(/<[^>]+>/g, '');
+                                                            const newContent = text.substring(0, start) + cleaned + text.substring(end);
+                                                            setBlogForm(prev => ({ ...prev, content: newContent }));
+                                                            setTimeout(() => { ta.focus(); ta.setSelectionRange(start, start + cleaned.length); }, 0);
+                                                        }}
+                                                        className="px-2.5 py-1 bg-rose-950/30 border border-solid border-rose-800/40 text-rose-400 hover:bg-rose-900/40 rounded transition-colors cursor-pointer text-[10px]"
+                                                        title="Clear formatting from selection"
+                                                    >✕ Clear</button>
+
+                                                    {/* Import .docx */}
+                                                    <div className="flex items-center gap-1.5 ml-auto">
+                                                        <input type="file" id="docx-file-input" accept=".docx" onChange={handleDocxUpload} className="hidden" />
+                                                        <label htmlFor="docx-file-input" className="px-2.5 py-1 bg-orange/10 border border-solid border-orange/30 text-orange hover:bg-orange hover:text-black rounded transition-colors text-[10px] font-bold uppercase tracking-wider cursor-pointer" title="Import Microsoft Word document (.docx)">Import .docx</label>
                                                     </div>
                                                 </div>
-                                                <textarea 
-                                                    id="blog-content-textarea"
-                                                    rows={12}
-                                                    value={blogForm.content}
-                                                    onChange={(e) => setBlogForm({ ...blogForm, content: e.target.value })}
-                                                    className="w-full bg-zinc-900/60 border border-solid border-zinc-800 focus:border-orange/60 px-4 py-3 rounded-b-lg rounded-t-none text-white font-main resize-y focus:outline-none"
-                                                    required
-                                                />
+
+                                                {/* Editor / Preview pane */}
+                                                {showPreview ? (
+                                                    <div className="w-full bg-zinc-900/60 border border-solid border-zinc-800 border-t-0 rounded-b-lg px-4 py-3 min-h-[288px] text-white font-main overflow-auto markdown-body text-sm leading-relaxed">
+                                                        {blogForm.content
+                                                            ? <Markdown>{blogForm.content}</Markdown>
+                                                            : <p className="text-zinc-500 text-sm italic">Nothing to preview yet.</p>
+                                                        }
+                                                    </div>
+                                                ) : (
+                                                    <textarea
+                                                        id="blog-content-textarea"
+                                                        rows={12}
+                                                        value={blogForm.content}
+                                                        onChange={(e) => setBlogForm(prev => ({ ...prev, content: e.target.value }))}
+                                                        className="w-full bg-zinc-900/60 border border-solid border-zinc-800 border-t-0 focus:border-orange/60 px-4 py-3 rounded-b-lg rounded-t-none text-white font-main resize-y focus:outline-none"
+                                                        required
+                                                    />
+                                                )}
                                             </div>
                                             <div>
+
                                                 <label className="block text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Status</label>
                                                 <select 
                                                     value={blogForm.status}
