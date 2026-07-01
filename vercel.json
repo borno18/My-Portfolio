@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://joydip-portfolio-backend.onrender.com/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://my-portfolio-vtps.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
