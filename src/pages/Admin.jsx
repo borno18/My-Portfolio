@@ -226,16 +226,21 @@ const Admin = () => {
                 body: JSON.stringify({ password }),
                 credentials: 'include'
             });
+            // Safe JSON parse — backend may return plain text on cold start / 404
+            const safeJson = async (r) => {
+                const text = await r.text();
+                try { return JSON.parse(text); } catch { return { _raw: text }; }
+            };
             if (!res.ok) {
-                const errData = await res.json();
+                const errData = await safeJson(res);
                 if (res.status === 429) {
                     throw new Error(errData.error || 'Rate limit exceeded. Please wait or restart the backend server.');
                 }
-                throw new Error(errData.detail || errData.error || 'Incorrect admin password');
+                throw new Error(errData.detail || errData.error || errData._raw || 'Login failed — backend may be starting up, please try again.');
             }
-            const loginData = await res.json();
+            const loginData = await safeJson(res);
             // Store token in localStorage for Safari/cross-browser compatibility
-            if (loginData.token) {
+            if (loginData && loginData.token) {
                 localStorage.setItem('admin_token', loginData.token);
                 setAuthToken(loginData.token);
             }
