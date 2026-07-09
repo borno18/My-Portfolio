@@ -11,4 +11,4 @@ jobs:
     steps:
       - name: Ping backend
         run: |
-          curl -sSf --connect-timeout 10 --max-time 30 https://my-portfolio-vtps.onrender.com/health || echo "Ping failed, backend may be cold-starting"
+          curl -sSf --connect-timeout 10 --max-time 30 https://my-portfolio-vtps.onrender.com/api/health || echo "Ping failed, backend may be cold-starting"
