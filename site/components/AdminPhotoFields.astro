@@ -1,0 +1,8 @@
+---
+const { photo = { title: '', alt: '', category: '', caption: '', display_order: 0 } } = Astro.props;
+---
+<label>Title<input name="title" required maxlength="140" value={photo.title} /></label>
+<label>Alt text<input name="alt" required maxlength="250" value={photo.alt} /></label>
+<label>Category<input name="category" required maxlength="40" value={photo.category} /></label>
+<label>Caption<textarea name="caption" maxlength="1000">{photo.caption}</textarea></label>
+<label>Display order<input name="display_order" type="number" min="0" max="999" required value={photo.display_order} /></label>

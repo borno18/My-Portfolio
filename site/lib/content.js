@@ -74,11 +74,19 @@ export async function getPosts() {
   return [...data, ...basePosts.filter(post => !slugs.has(post.slug))];
 }
 
+export async function getProjectSettings() {
+  const db = reader();
+  if (!db) return [];
+  const { data, error } = await db.from('portfolio_project_settings').select('slug,featured,display_order');
+  if (error) throw new Error('Could not build project placement from Supabase');
+  return data;
+}
+
 export async function getPublishedPhotos() {
   const db = reader();
   if (!db) return [];
   const { data, error } = await db.from('portfolio_photos')
-    .select('id,title,category,caption,alt,public_id,version,cloud_name,width,height').order('created_at', { ascending: false });
+    .select('id,title,category,caption,alt,public_id,version,cloud_name,width,height').order('display_order').order('created_at', { ascending: false });
   if (error) throw new Error('Could not build the published gallery from Supabase');
   return data;
 }

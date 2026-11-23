@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { cloudImage, renderMarkdown } from '../site/lib/content.js';
 import { emailDraft } from '../site/lib/contact.js';
+import { projectDisplay } from '../site/lib/work.js';
 
 const db = new PGlite();
 try {
@@ -15,7 +16,9 @@ try {
       as 'select coalesce(nullif(current_setting(''request.jwt.claims'', true), ''''), ''{}'')::jsonb';
     grant usage on schema auth to anon, authenticated;
   `);
-  await db.exec(await readFile('supabase/migrations/20261123093411_portfolio.sql', 'utf8'));
+  for (const file of (await readdir('supabase/migrations')).filter(name => name.endsWith('.sql')).sort()) {
+    await db.exec(await readFile('supabase/migrations/' + file, 'utf8'));
+  }
   await db.exec(`
     insert into portfolio_posts values ('draft','Draft','Hidden','Body','draft',null),
       ('public','Public','Visible','Body','published',now());
@@ -40,6 +43,19 @@ try {
   assert.equal(await receive('Message 0'), 'received');
   assert.equal(await receive('Message 5'), 'limited');
   assert.equal((await db.query('select count(*) as count from portfolio_messages')).rows[0].count, 5);
+
+  await db.exec("set role authenticated; set request.jwt.claims = '{\"aal\":\"aal1\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
+  assert.equal((await db.query("update portfolio_messages set read_at = now() returning id")).rows.length, 0);
+  await assert.rejects(() => db.query("insert into portfolio_project_settings values ('attendance-app',true,1)"), /row-level security/i);
+  await db.exec("set request.jwt.claims = '{\"aal\":\"aal2\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
+  assert.equal((await db.query("update portfolio_messages set read_at = now() returning id")).rows.length, 5);
+  await assert.rejects(() => db.query("update portfolio_messages set message = 'changed'"), /permission denied/i);
+  await db.query("insert into portfolio_project_settings values ('attendance-app',false,0),('pookie-prep',true,1)");
+  await db.exec('set role anon');
+  const ranking = projectDisplay((await db.query('select * from portfolio_project_settings')).rows).filter(project => project.featured);
+  assert.equal(ranking[0].slug, 'pookie-prep');
+  assert(!ranking.some(project => project.slug === 'attendance-app'));
+  await assert.rejects(() => db.query("update portfolio_project_settings set featured = false"), /permission denied/i);
 
   const unsafe = renderMarkdown('[Link](javascript:alert(1)) <img src="//evil.example/x" onerror="alert(1)"><script>alert(1)</script>');
   assert.doesNotMatch(unsafe, /javascript:|onerror|evil.example|<script/);

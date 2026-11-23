@@ -55,3 +55,15 @@ export const projects = [
     ]
   }
 ];
+
+export function projectDisplay(settings = []) {
+  const overrides = new Map(settings.map(setting => [setting.slug, setting]));
+  return projects.map((project, index) => {
+    const setting = overrides.get(project.slug);
+    return {
+      ...project,
+      featured: setting?.featured ?? project.featured !== false,
+      display_order: setting?.display_order ?? index * 10,
+    };
+  }).sort((a, b) => a.display_order - b.display_order);
+}

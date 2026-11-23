@@ -61,11 +61,7 @@ function mediaConfig() {
   return config;
 }
 
-export async function publishPhoto(db, form) {
-  const title = field(form, 'title', 140);
-  const alt = field(form, 'alt', 250);
-  const category = field(form, 'category', 40);
-  const caption = field(form, 'caption', 1000, true);
+export async function publishPhoto(db, form, metadata) {
   const file = form.get('photo');
   if (!(file instanceof File) || !file.size || file.size > 3500000) throw new InputError('Select an image under 3.5 MB.');
   const config = mediaConfig();
@@ -81,7 +77,7 @@ export async function publishPhoto(db, form) {
   const uploaded = await new Promise((resolve, reject) => {
     cloudinary.uploader.upload_stream({ ...config, resource_type: 'image', public_id, overwrite: false, timeout: 12000 }, (error, result) => error ? reject(error) : resolve(result)).end(bytes);
   });
-  const { error } = await db.from('portfolio_photos').insert({ id, title, alt, category, caption, public_id, cloud_name: config.cloud_name, version: uploaded.version, width: uploaded.width, height: uploaded.height });
+  const { error } = await db.from('portfolio_photos').insert({ ...metadata, id, public_id, cloud_name: config.cloud_name, version: uploaded.version, width: uploaded.width, height: uploaded.height });
   if (error) {
     await cloudinary.uploader.destroy(public_id, { ...config, invalidate: true }).catch(() => {});
     throw error;

@@ -1,7 +1,12 @@
 ---
 export const prerender = false;
 import Base from '../layouts/Base.astro';
-import { env } from '../lib/content.js';
+import { cloudImage, env, renderMarkdown } from '../lib/content.js';
+import { adminSections, parsePost, photoFields, recordId, savePost, saveProjectSettings, updateInbox } from '../lib/admin.js';
+import { projectDisplay } from '../lib/work.js';
+import AdminPostEditor from '../components/AdminPostEditor.astro';
+import AdminPhotoFields from '../components/AdminPhotoFields.astro';
+import '../admin.css';
 import { authClient, ownerSession, sameOrigin, field, InputError, rebuild, publishPhoto, removePhoto } from '../lib/server.js';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store');
@@ -10,14 +15,22 @@ const db = authClient(Astro);
 const canUpload = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => env(key));
 const canRebuild = Boolean(env('VERCEL_DEPLOY_HOOK'));
 const inboxReady = Boolean(env('SUPABASE_SECRET_KEY') && (env('CONTACT_RATE_LIMIT_SECRET') || '').length >= 32);
-const status = Astro.url.searchParams.get('saved');
-let notice = ({ yes: 'Saved. The public site is rebuilding.', pending: 'Saved. Start a rebuild to update the public site.', draft: 'Draft saved.' })[status] || '';
+const params = Astro.url.searchParams;
+const section = Object.hasOwn(adminSections, params.get('section')) ? params.get('section') : 'blog';
+const editing = section === 'blog' ? params.get('edit') : null;
+const filter = ['draft', 'published', 'unread', 'read'].includes(params.get('status')) ? params.get('status') : '';
+const search = (params.get('q') || '').trim().slice(0, 100);
+const statuses = new Map([['yes', 'Saved. A preview rebuild was requested.'], ['pending', 'Saved. The public preview will update after a rebuild.'], ['draft', 'Draft saved.'], ['message', 'Message status updated.']]);
+let notice = statuses.get(params.get('saved')) || '';
 let factor;
 let qr;
-let owner = db ? await ownerSession(db) : { user: null, verified: false };
-let posts = [];
-let photos = [];
-let messages = [];
+const owner = db ? await ownerSession(db) : { user: null, verified: false };
+let items = [];
+let post;
+let preview;
+let originalSlug = '';
+const redirectSaved = (target, saved) => Astro.redirect('/admin?section=' + target + '&saved=' + saved, 303);
+const redirectBuild = async target => redirectSaved(target, await rebuild() ? 'yes' : 'pending');
 
 if (Astro.request.method === 'POST') {
   if (!sameOrigin(Astro.request)) return new Response('Forbidden', { status: 403 });
@@ -62,26 +75,37 @@ if (Astro.request.method === 'POST') {
       return Astro.redirect('/admin', 303);
     } else if (!owner.verified) {
       return new Response('Authenticator verification required', { status: 403 });
-    } else if (action === 'save-post') {
-      const slug = field(form, 'slug', 100);
-      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) throw new InputError('Use lower-case words separated by hyphens for the URL slug.');
-      const old = await db.from('portfolio_posts').select('status,published_at').eq('slug', slug).maybeSingle();
-      if (old.error) throw old.error;
-      const published = form.get('publish') === 'yes';
-      const entry = { slug, title: field(form, 'title', 160), description: field(form, 'description', 300), body: field(form, 'body', 65000), status: published ? 'published' : 'draft', published_at: published ? old.data?.published_at || new Date().toISOString() : null };
-      const saved = await db.from('portfolio_posts').upsert(entry);
-      if (saved.error) throw saved.error;
-      const needsRebuild = published || old.data?.status === 'published';
-      return Astro.redirect('/admin?saved=' + (needsRebuild ? await rebuild() ? 'yes' : 'pending' : 'draft'), 303);
+    } else if (['preview-post', 'save-draft', 'publish-post'].includes(action)) {
+      originalSlug = field(form, 'original_slug', 100, true);
+      const draft = parsePost(form, action === 'preview-post');
+      const previous = originalSlug ? await db.from('portfolio_posts').select('status').eq('slug', originalSlug).single() : null;
+      if (previous?.error) throw previous.error;
+      post = { ...draft, status: previous?.data.status || 'draft' };
+      if (action === 'preview-post') {
+        preview = renderMarkdown(post.body, Astro.site, Astro.url);
+      } else {
+        const changedPublic = await savePost(db, post, originalSlug, action === 'publish-post');
+        return changedPublic ? await redirectBuild('blog') : redirectSaved('blog', 'draft');
+      }
     } else if (action === 'publish-photo') {
-      await publishPhoto(db, form);
-      return Astro.redirect('/admin?saved=' + (await rebuild() ? 'yes' : 'pending'), 303);
+      await publishPhoto(db, form, photoFields(form));
+      return await redirectBuild('photos');
+    } else if (action === 'edit-photo') {
+      const saved = await db.from('portfolio_photos').update(photoFields(form)).eq('id', recordId(form)).select('id').single();
+      if (saved.error) throw saved.error;
+      return await redirectBuild('photos');
     } else if (action === 'remove-photo') {
       if (form.get('confirm') !== 'yes') throw new InputError('Confirm which photograph you want to remove.');
-      await removePhoto(db, field(form, 'id', 36));
-      return Astro.redirect('/admin?saved=' + (await rebuild() ? 'yes' : 'pending'), 303);
+      await removePhoto(db, recordId(form));
+      return await redirectBuild('photos');
+    } else if (action === 'mark-message') {
+      await updateInbox(db, form);
+      return redirectSaved('inbox', 'message');
+    } else if (action === 'save-project') {
+      await saveProjectSettings(db, form);
+      return await redirectBuild('projects');
     } else if (action === 'rebuild') {
-      return Astro.redirect('/admin?saved=' + (await rebuild() ? 'yes' : 'pending'), 303);
+      return await redirectBuild(section);
     } else {
       return new Response('Invalid operation', { status: 400 });
     }
@@ -96,20 +120,131 @@ if (owner.user && !owner.verified && !factor) {
   factor = data?.totp?.[0]?.id;
 }
 if (owner.verified) {
-  const result = await Promise.all([
-    db.from('portfolio_posts').select('*').order('published_at', { ascending: false }),
-    db.from('portfolio_photos').select('id,title,category').order('created_at', { ascending: false }),
-    db.from('portfolio_messages').select('name,email,message,created_at').order('created_at', { ascending: false }).limit(100),
-  ]);
-  if (result.some(item => item.error)) notice ||= 'Some dashboard records could not be loaded.';
-  [posts, photos, messages] = result.map(item => item.data || []);
+  let result;
+  if (section === 'blog' && editing) {
+    if (!post) {
+      originalSlug = editing === '_new' ? '' : editing;
+      if (originalSlug) {
+        result = await db.from('portfolio_posts').select('slug,title,description,body,status').eq('slug', originalSlug).maybeSingle();
+        post = result.data;
+        if (!post && !result.error) Astro.response.status = 404;
+      } else {
+        post = { slug: '', title: '', description: '', body: '', status: 'draft' };
+      }
+    }
+  } else if (section === 'blog') {
+    let query = db.from('portfolio_posts').select('slug,title,status,published_at').order('published_at', { ascending: false }).order('slug');
+    if (['draft', 'published'].includes(filter)) query = query.eq('status', filter);
+    result = await query;
+    items = (result.data || []).filter(item => !search || (item.title + ' ' + item.slug).toLowerCase().includes(search.toLowerCase()));
+  } else if (section === 'photos') {
+    result = await db.from('portfolio_photos').select('id,title,alt,category,caption,display_order,cloud_name,public_id,version').order('display_order').order('created_at', { ascending: false });
+    items = result.data || [];
+  } else if (section === 'inbox') {
+    let query = db.from('portfolio_messages').select('id,name,email,message,read_at,created_at').order('created_at', { ascending: false }).limit(100);
+    if (filter === 'unread') query = query.is('read_at', null);
+    if (filter === 'read') query = query.not('read_at', 'is', null);
+    result = await query;
+    items = result.data || [];
+  } else {
+    result = await db.from('portfolio_project_settings').select('slug,featured,display_order');
+    items = projectDisplay(result.data || []);
+  }
+  if (result?.error) {
+    Astro.response.status = 502;
+    notice ||= 'This section could not be loaded. Try again in a moment.';
+  }
 }
-const entries = [{ slug: '', title: '', description: '', body: '', status: 'draft' }, ...posts];
+const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'Asia/Dhaka' }).format(new Date(date));
 ---
 <Base title="Owner dashboard" description="Private portfolio publishing." privatePage>
-  <div class="reading admin">
-    <section class="page-intro"><h1>Portfolio admin</h1><p>Manage writing, photography, and contact messages.</p></section>
-    {notice && <p role="status">{notice}</p>}
+  <div class:list={['admin', owner.verified ? 'wrap admin-workspace' : 'reading']}>
+    {owner.verified ? <>
+      <div class="admin-top">
+        <div><h1>Portfolio admin</h1><p>Manage articles, photographs, inbox, and featured projects.</p></div>
+        <div class="actions">
+          {canRebuild && <form method="post"><button name="action" value="rebuild" class="button secondary">Rebuild preview</button></form>}
+          <form method="post"><button name="action" value="logout" class="button secondary">Sign out</button></form>
+        </div>
+      </div>
+      {notice && <p role="status">{notice}</p>}
+      <div class="admin-grid">
+        <nav class="admin-nav" aria-label="Admin sections">
+          {Object.entries(adminSections).map(([key, label]) => <a href={'/admin?section=' + key} aria-current={key === section ? 'page' : undefined}>{label}</a>)}
+        </nav>
+        <div class="admin-main">
+          {section === 'blog' && (editing ? (
+            post ? <AdminPostEditor {post} {originalSlug} {preview} {editing} /> :
+              <><h2>Article unavailable</h2><p class="admin-empty"><a href="/admin?section=blog">Back to posts</a></p></>
+          ) : <>
+            <div class="admin-heading"><h2>Blog posts</h2><a class="button" href="/admin?section=blog&amp;edit=_new">New article</a></div>
+            <form method="get" class="admin-tools">
+              <input type="hidden" name="section" value="blog" />
+              <label>Search<input name="q" type="search" maxlength="100" value={search} /></label>
+              <label>Status<select name="status"><option value="">All statuses</option><option value="draft" selected={filter === 'draft'}>Draft</option><option value="published" selected={filter === 'published'}>Published</option></select></label>
+              <button class="button secondary">Filter posts</button>
+            </form>
+            {items.length ? <ul class="admin-list">
+              {items.map(item => <li>
+                <div><strong>{item.title}</strong><small>{item.slug}</small></div>
+                <div class="actions"><span class="admin-status">{item.status === 'published' ? 'Published' : 'Draft'}</span>
+                  {item.published_at && <time datetime={item.published_at}>{formatDate(item.published_at)}</time>}
+                  <a href={'/admin?section=blog&edit=' + encodeURIComponent(item.slug)} aria-label={'Edit ' + item.title}>Edit</a></div>
+              </li>)}
+            </ul> : <p class="admin-empty">No articles match this view.</p>}
+          </>)}
+          {section === 'inbox' && <>
+            <h2>Inbox</h2>
+            {!inboxReady && <p class="form-status">Visitors can prepare an email draft. Connect the server inbox settings to receive new messages here.</p>}
+            <form method="get" class="admin-tools"><input type="hidden" name="section" value="inbox" />
+              <label>Status<select name="status"><option value="">All messages</option><option value="unread" selected={filter === 'unread'}>Unread</option><option value="read" selected={filter === 'read'}>Read</option></select></label>
+              <button class="button secondary">Filter inbox</button>
+            </form>
+            {items.length ? items.map(item => <details class="admin-inbox-item"><summary>{item.name} · {item.read_at ? 'Read' : 'Unread'}</summary>
+              <time datetime={item.created_at}>{formatDate(item.created_at)}</time>
+              <p><a href={'mailto:' + encodeURIComponent(item.email).replace('%40','@')}>Reply to {item.email}</a></p>
+              <p class="admin-message">{item.message}</p>
+              <form method="post"><input type="hidden" name="id" value={item.id} />
+                <input type="hidden" name="read" value={item.read_at ? 'no' : 'yes'} />
+                <button class="button secondary" name="action" value="mark-message">Mark as {item.read_at ? 'unread' : 'read'}</button>
+              </form>
+            </details>) : <p class="admin-empty">No messages in this view.</p>}
+          </>}
+          {section === 'photos' && <>
+            <h2>Photography</h2>
+            {canUpload ? <details><summary>Upload photograph</summary><form method="post" enctype="multipart/form-data">
+              <input type="hidden" name="action" value="publish-photo" /><AdminPhotoFields />
+              <label>Photograph · JPEG, PNG, or WebP under 3.5 MB<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+              <button class="button">Upload and publish</button>
+            </form></details> : <p class="form-status">Cloudinary credentials are required to upload or remove photographs.</p>}
+            <p class="admin-empty">Lower display numbers appear first.</p>
+            {items.length ? items.map(photo => <details><summary>{photo.title} · {photo.category}</summary>
+              {cloudImage(photo, 360) && <img src={cloudImage(photo, 360)} alt={photo.alt} width="240" loading="lazy" />}
+              <form method="post"><input type="hidden" name="id" value={photo.id} /><AdminPhotoFields {photo} />
+                <button class="button" name="action" value="edit-photo">Save details</button>
+              </form>
+              {canUpload && <form method="post"><input type="hidden" name="id" value={photo.id} />
+                <label><span><input name="confirm" type="checkbox" value="yes" required /> Confirm removal</span></label>
+                <button class="button secondary" name="action" value="remove-photo">Remove from the gallery</button>
+              </form>}
+            </details>) : <p class="admin-empty">No uploaded photographs yet.</p>}
+          </>}
+          {section === 'projects' && <>
+            <h2>Projects</h2><p class="admin-empty">Choose the projects featured on the homepage and set their display order. Case study URLs stay available.</p>
+            {items.map(project => <details><summary>{project.name} · {project.featured ? 'Featured' : 'Unfeatured'}</summary>
+              <form method="post"><input type="hidden" name="slug" value={project.slug} />
+                <label><span><input name="featured" type="checkbox" value="yes" checked={project.featured} /> Feature on the homepage</span></label>
+                <label>Display order<input type="number" name="display_order" min="0" max="999" required value={project.display_order} /></label>
+                <button class="button" name="action" value="save-project">Save placement</button>
+              </form>
+            </details>)}
+          </>}
+          {!canRebuild && <p class="form-status">Connect a Vercel deploy hook to publish content changes automatically.</p>}
+        </div>
+      </div>
+    </> : <>
+      <section class="page-intro"><h1>Portfolio admin</h1><p>Owner sign-in for portfolio publishing.</p></section>
+      {notice && <p role="status">{notice}</p>}
     {!db ? <p class="form-status">Owner sign-in requires a connected Supabase account.</p> : !owner.user ? (
       <form method="post">
         <input type="hidden" name="action" value="login" />
@@ -127,42 +262,8 @@ const entries = [{ slug: '', title: '', description: '', body: '', status: 'draf
           <button class="button">Verify</button>
           {qr && <button name="action" value="enroll" formnovalidate class="button secondary">Restart setup</button>}
         </form> : <form method="post"><p>Set up an authenticator before opening the dashboard.</p><button name="action" value="enroll" class="button">Set up authenticator</button></form>
-      ) : <>
-        <section><h2>Writing</h2>
-          {entries.map(post => <details><summary>{post.title ? post.title + ' · ' + post.status : 'New article'}</summary>
-            <form method="post">
-              <input type="hidden" name="action" value="save-post" />
-              <label>Title<input name="title" required maxlength="160" value={post.title} /></label>
-              <label>URL slug<input name="slug" required maxlength="100" pattern="[a-z0-9]+(-[a-z0-9]+)*" value={post.slug} readonly={Boolean(post.slug)} /></label>
-              <label>Description<input name="description" required maxlength="300" value={post.description} /></label>
-              <label>Article in Markdown<textarea name="body" required maxlength="65000" rows="12">{post.body}</textarea></label>
-              <label><span><input name="publish" type="checkbox" value="yes" checked={post.status === 'published'} /> Publish to the site</span></label>
-              <button class="button">Save article</button>
-            </form>
-          </details>)}
-        </section>
-        <section><h2>Photography</h2>
-          {canUpload ? <form method="post" enctype="multipart/form-data">
-            <input type="hidden" name="action" value="publish-photo" />
-            <label>Title<input name="title" required maxlength="140" /></label>
-            <label>Alt text<input name="alt" required maxlength="250" /></label>
-            <label>Category<input name="category" required maxlength="40" /></label>
-            <label>Caption<textarea name="caption" maxlength="1000"></textarea></label>
-            <label>Photograph · JPEG, PNG, or WebP under 3.5 MB<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
-            <button class="button">Upload and publish</button>
-          </form> : <p class="form-status">Connect Cloudinary to upload and publish photographs.</p>}
-          {photos.map(photo => <details><summary>{photo.title} · {photo.category}</summary><form method="post">
-            <input type="hidden" name="id" value={photo.id} />
-            <label><span><input name="confirm" type="checkbox" value="yes" required /> Confirm removal</span></label>
-            <button class="button secondary" name="action" value="remove-photo">Remove from the gallery</button>
-          </form></details>)}
-        </section>
-        <section><h2>Inbox</h2>
-          {!inboxReady && <p class="form-status">Visitors can prepare an email draft. Connect the server inbox settings to accept messages here.</p>}
-          {messages.length ? messages.map(message => <details><summary>{message.name} · {new Date(message.created_at).toLocaleDateString('en', { timeZone: 'Asia/Dhaka' })}</summary><p>{message.email}</p><p style="white-space:pre-wrap">{message.message}</p></details>) : <p>No messages yet.</p>}
-        </section>
-        {canRebuild ? <form method="post"><button name="action" value="rebuild" class="button secondary">Rebuild public site</button></form> : <p class="form-status">A Vercel deploy hook is required to publish changes automatically.</p>}
-      </>}
+      ) : null}
+    </>}
     </>}
   </div>
 </Base>

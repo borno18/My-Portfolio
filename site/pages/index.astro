@@ -5,11 +5,13 @@ import Link from '../components/Link.astro';
 import ProjectMedia from '../components/ProjectMedia.astro';
 import ArticleTeaser from '../components/ArticleTeaser.astro';
 import portrait from '../assets/joydip-portrait.webp';
-import { projects } from '../lib/work.js';
+import { projectDisplay } from '../lib/work.js';
 import { featuredPhoto } from '../lib/photos.js';
-import { getPosts } from '../lib/content.js';
+import { getPosts, getProjectSettings } from '../lib/content.js';
 
-const posts = (await getPosts()).slice(0, 2);
+const [articles, settings] = await Promise.all([getPosts(), getProjectSettings()]);
+const posts = articles.slice(0, 2);
+const featuredProjects = projectDisplay(settings).filter(project => project.featured);
 const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software Engineering Student', url: Astro.site.href, affiliation: { '@type': 'CollegeOrUniversity', name: 'Shahjalal University of Science and Technology' }, sameAs: ['https://github.com/borno18', 'https://www.linkedin.com/in/joydip-majumdar/'] };
 ---
 <Base description="Joydip Majumdar is a software engineering student at SUST in Sylhet, Bangladesh. Explore his projects, engineering blog, and Fujifilm photography." schema={{ '@context': 'https://schema.org', '@type': 'ProfilePage', mainEntity: person }}>
@@ -29,7 +31,8 @@ const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software
     <div class="wrap band">
       <div class="section-head"><h2>Projects</h2><Link href="https://github.com/borno18">GitHub profile</Link></div>
       <div class="project-list">
-        {projects.filter(project => project.featured !== false).map(project => (
+        {!featuredProjects.length && <p>No featured projects right now. Visit my GitHub profile for more.</p>}
+        {featuredProjects.map(project => (
           <article class="project-row">
             <div class="project-visual"><ProjectMedia project={project} /></div>
             <div class="project-copy">

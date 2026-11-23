@@ -1,0 +1,21 @@
+---
+const { post, originalSlug, preview, editing } = Astro.props;
+---
+<section class="admin-editor" aria-labelledby="editor-heading">
+  <div class="admin-heading"><h2 id="editor-heading">{editing === '_new' ? 'New article' : 'Edit article'}</h2>
+    <a href="/admin?section=blog">Back to posts</a>
+  </div>
+  <form method="post">
+    <input type="hidden" name="original_slug" value={originalSlug} />
+    <label>Title<input name="title" required maxlength="160" value={post.title} /></label>
+    <label>URL slug<input name="slug" required maxlength="100" pattern="[a-z0-9]+(-[a-z0-9]+)*" value={post.slug} readonly={Boolean(originalSlug)} /></label>
+    <label>Description<input name="description" required maxlength="300" value={post.description} /></label>
+    <label>Article in Markdown<textarea name="body" required maxlength="65000" rows="14">{post.body}</textarea></label>
+    <div class="actions">
+      <button class="button secondary" name="action" value="save-draft">{post.status === 'published' ? 'Unpublish to draft' : 'Save draft'}</button>
+      <button class="button secondary" name="action" value="preview-post" formnovalidate>Preview Markdown</button>
+      <button class="button" name="action" value="publish-post">{post.status === 'published' ? 'Update published article' : 'Publish article'}</button>
+    </div>
+  </form>
+  {preview && <div class="admin-preview"><h3>Markdown preview</h3><div class="article article-prose" set:html={preview} /></div>}
+</section>
