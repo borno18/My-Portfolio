@@ -26,7 +26,7 @@ const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 
       </div>
     </header>
     {detail.cover && <figure class="wrap article-cover"><EditorialMedia cover={detail.cover} large /></figure>}
-    <div class="reading article article-prose" set:html={renderMarkdown(post.body)} />
+    <div class="reading article article-prose" set:html={renderMarkdown(post.body, Astro.site, Astro.url)} />
   </article>
   <aside class="reading related-articles" aria-labelledby="read-next">
     <h2 id="read-next">Read next</h2>

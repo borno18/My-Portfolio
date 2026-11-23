@@ -1,6 +1,7 @@
 ---
+import { opensExternalTab } from '../lib/links.js';
 const { href, 'aria-describedby': description, describeNewTab = true, ...attributes } = Astro.props;
-const opensTab = typeof href === 'string' && !/^(#|mailto:|tel:)/i.test(href);
+const opensTab = opensExternalTab(href, Astro.site, Astro.url);
 ---
 <a {...attributes} href={href}
   target={opensTab ? '_blank' : undefined}

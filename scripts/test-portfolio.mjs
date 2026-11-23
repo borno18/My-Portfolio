@@ -46,7 +46,8 @@ try {
   assert.match(renderMarkdown('[Case study](/work/demo)'), /href="\/work\/demo"/);
   assert.equal(cloudImage({ cloud_name: 'evil.example', public_id: 'x', version: 1 }, 960), '');
   assert.match(renderMarkdown('[New tab](https://example.test:8443/doc)'), /target="_blank" rel="noopener noreferrer"/);
-  assert.doesNotMatch(renderMarkdown('[Same page](#details) [Email](mailto:preview@example.test)'), /target="_blank"/);
+  const internal = '[Projects](/work/demo) [About](https://portfolio.example/#about) [Hash](#details) [Email](mailto:preview@example.test)';
+  assert.doesNotMatch(renderMarkdown(internal, 'https://portfolio.example'), /target="_blank"/);
   const draft = emailDraft({ name: 'A & B', email: 'preview@example.test', topic: 'Photography', message: 'Hello & goodbye' });
   const data = new URL(draft);
   assert.equal(data.searchParams.get('subject'), 'Photography · Portfolio');

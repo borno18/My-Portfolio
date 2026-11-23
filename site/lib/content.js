@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { marked } from 'marked';
 import sanitizeHtml from 'sanitize-html';
+import { opensExternalTab } from './links.js';
 
 const basePosts = [{
   slug: 'correcting-a-tournament-result',
@@ -82,14 +83,14 @@ export async function getPublishedPhotos() {
   return data;
 }
 
-export function renderMarkdown(body) {
+export function renderMarkdown(body, ...siteUrls) {
   return sanitizeHtml(marked.parse(body, { async: false }), {
     allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
     allowedAttributes: { a: ['href', 'title', 'target', 'rel', 'aria-describedby'], img: ['src', 'alt', 'title', 'width', 'height'] },
     transformTags: {
       a: (_, { href, title }) => {
         const attributes = { href, title };
-        if (href && /^(?:https:\/\/|\/(?!\/)|\.{1,2}\/|[a-z0-9._-]+(?:[/?]|$))/i.test(href)) {
+        if (opensExternalTab(href, ...siteUrls)) {
           Object.assign(attributes, { target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'new-tab-description' });
         }
         return { tagName: 'a', attribs: Object.fromEntries(Object.entries(attributes).filter(([, value]) => value != null)) };
