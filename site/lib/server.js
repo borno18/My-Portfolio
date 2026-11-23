@@ -70,7 +70,12 @@ async function cloudinaryImage(action, config, params, file) {
   }
   if (!response.ok) {
     console.error('Cloudinary rejected photo operation', { action, status: response.status });
-    if ([401, 403].includes(response.status)) throw new InputError('Cloudinary rejected the configured photo credentials.');
+    if (response.status === 401) throw new InputError('Cloudinary could not authenticate the configured API key.');
+    if (response.status === 403) {
+      throw new InputError(action === 'upload'
+        ? 'Cloudinary denied the upload. Give the configured API key permission to create assets.'
+        : 'Cloudinary denied removal. Give the configured API key permission to delete assets.');
+    }
     throw new InputError('Cloudinary could not process this photograph.');
   }
   return response.json();

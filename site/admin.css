@@ -17,6 +17,7 @@
 .admin-list > li{padding-block:.65rem;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.55rem 1rem;overflow-wrap:anywhere}
 .admin-list small{display:block;color:var(--muted)}
 .admin-list .actions{gap:.6rem}
+.admin-list form{margin:0}
 .admin-list time{color:var(--muted);font-size:.9rem}
 .admin-status{display:inline-block;padding:.18rem .5rem;background:var(--sage-soft);border-radius:5px;font-size:.85rem;font-weight:600}
 .admin-empty{padding:1rem 0;color:var(--muted)}
