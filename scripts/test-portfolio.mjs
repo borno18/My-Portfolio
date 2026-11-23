@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { cloudImage, renderMarkdown } from '../site/lib/content.js';
-import { emailDraft } from '../site/lib/contact.js';
 import { projectDisplay } from '../site/lib/work.js';
 
 const db = new PGlite();
@@ -20,14 +19,19 @@ try {
     await db.exec(await readFile('supabase/migrations/' + file, 'utf8'));
   }
   await db.exec(`
+    insert into portfolio_private.inbox_key values (true, sha256(convert_to(repeat('b',64), 'UTF8')));
     insert into portfolio_posts values ('draft','Draft','Hidden','Body','draft',null),
       ('public','Public','Visible','Body','published',now());
     set role anon;
   `);
-  const posts = async () => (await db.query('select slug from portfolio_posts order by slug')).rows.map(row => row.slug);
+  const posts = async () => (await db.query("select slug from portfolio_posts where slug in ('draft','public') order by slug")).rows.map(row => row.slug);
   assert.deepEqual(await posts(), ['public']);
   await assert.rejects(() => db.query('select * from portfolio_messages'), /permission denied/i);
+  await assert.rejects(() => db.query('select * from portfolio_private.inbox_key'), /permission denied/i);
   await assert.rejects(() => db.query("select portfolio_receive_message(repeat('a',64),'A','a@example.com','Hello')"), /permission denied/i);
+  const contact = (key, body) => db.query("select portfolio_receive_message($1,repeat('c',64),'A','a@example.com',$2) as outcome", [key, body]);
+  await assert.rejects(() => contact('d'.repeat(64), 'Hello'), /delivery unauthorized/i);
+  assert.equal((await contact('b'.repeat(64), 'Via contact form')).rows[0].outcome, 'received');
   await db.exec("set role authenticated; set request.jwt.claims = '{\"aal\":\"aal2\"}'");
   assert.deepEqual(await posts(), ['public']);
   await db.exec("set request.jwt.claims = '{\"aal\":\"aal1\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
@@ -42,19 +46,25 @@ try {
   for (let index = 0; index < 5; index++) assert.equal(await receive('Message ' + index), 'received');
   assert.equal(await receive('Message 0'), 'received');
   assert.equal(await receive('Message 5'), 'limited');
-  assert.equal((await db.query('select count(*) as count from portfolio_messages')).rows[0].count, 5);
+  assert.equal((await db.query('select count(*) as count from portfolio_messages')).rows[0].count, 6);
 
   await db.exec("set role authenticated; set request.jwt.claims = '{\"aal\":\"aal1\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
   assert.equal((await db.query("update portfolio_messages set read_at = now() returning id")).rows.length, 0);
   await assert.rejects(() => db.query("insert into portfolio_project_settings values ('attendance-app',true,1)"), /row-level security/i);
   await db.exec("set request.jwt.claims = '{\"aal\":\"aal2\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
-  assert.equal((await db.query("update portfolio_messages set read_at = now() returning id")).rows.length, 5);
+  assert.equal((await db.query("update portfolio_messages set read_at = now() returning id")).rows.length, 6);
   await assert.rejects(() => db.query("update portfolio_messages set message = 'changed'"), /permission denied/i);
   await db.query("insert into portfolio_project_settings values ('attendance-app',false,0),('pookie-prep',true,1)");
+  await db.query("insert into portfolio_project_settings values ('github-123',true,2,'{\"name\":\"Project-One\",\"description\":\"Demo\",\"language\":\"Dart\"}')");
+  await db.query("update portfolio_posts set status = 'draft', published_at = null where slug = 'offline-attendance'");
+  await db.query("delete from portfolio_posts where slug = 'public'");
   await db.exec('set role anon');
+  assert.deepEqual(await posts(), []);
+  assert.equal((await db.query("select slug from portfolio_posts where slug = 'offline-attendance'")).rows.length, 0);
   const ranking = projectDisplay((await db.query('select * from portfolio_project_settings')).rows).filter(project => project.featured);
   assert.equal(ranking[0].slug, 'pookie-prep');
   assert(!ranking.some(project => project.slug === 'attendance-app'));
+  assert.equal(ranking[1].repo, 'https://github.com/borno18/Project-One');
   await assert.rejects(() => db.query("update portfolio_project_settings set featured = false"), /permission denied/i);
 
   const unsafe = renderMarkdown('[Link](javascript:alert(1)) <img src="//evil.example/x" onerror="alert(1)"><script>alert(1)</script>');
@@ -64,9 +74,5 @@ try {
   assert.match(renderMarkdown('[New tab](https://example.test:8443/doc)'), /target="_blank" rel="noopener noreferrer"/);
   const internal = '[Projects](/work/demo) [About](https://portfolio.example/#about) [Hash](#details) [Email](mailto:preview@example.test)';
   assert.doesNotMatch(renderMarkdown(internal, 'https://portfolio.example'), /target="_blank"/);
-  const draft = emailDraft({ name: 'A & B', email: 'preview@example.test', topic: 'Photography', message: 'Hello & goodbye' });
-  const data = new URL(draft);
-  assert.equal(data.searchParams.get('subject'), 'Photography · Portfolio');
-  assert.equal(data.searchParams.get('body'), 'Hello & goodbye\n\nFrom: A & B\nReply to: preview@example.test');
   console.log('Verified visibility, MFA policy, contact limits, and safe Markdown.');
 } finally { await db.close(); }

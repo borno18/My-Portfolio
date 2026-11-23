@@ -91,6 +91,7 @@ p { max-width: 66ch; }
 .project-section { background: var(--sage-soft); }
 .project-list { display: grid; gap: 1rem; }
 .project-row { display: grid; grid-template-columns: 1.04fr 1fr; min-width: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; }
+.project-row.repository-row { grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere; }
 .project-row:nth-child(even) .project-visual { order: 1; }
 .project-visual { min-width: 0; display: block; overflow: hidden; background: var(--sage-surface); text-decoration: none; }
 .project-visual:focus-visible, .story-image:focus-visible { outline-offset: -4px; }

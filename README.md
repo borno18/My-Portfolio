@@ -8,7 +8,7 @@ Use Node 24 and run `npm ci`, then `npm run dev`. Without provider settings the 
 
 ## Connect publishing and contact
 
-1. Use a dedicated Supabase project. Apply the checked-in migration and turn off public sign-ups. Create a single confirmed owner. Set `PORTFOLIO_OWNER_ID` to that user’s UUID.
+1. Use a dedicated Supabase project. Apply the checked-in migrations in order and turn off public sign-ups. Create a single confirmed owner. Set `PORTFOLIO_OWNER_ID` to that user’s UUID.
 2. Set the owner’s `app_metadata.portfolio_role` to `owner` with the Supabase Admin API or the following statement in the private Supabase SQL editor. Substitute the owner UUID. Existing metadata is preserved.
 
    ```sql
@@ -17,8 +17,8 @@ Use Node 24 and run `npm ci`, then `npm run dev`. Without provider settings the 
    where id = '<owner UUID>'::uuid;
    ```
 
-3. Add the environment variables in [.env.example](.env.example) to the intended Vercel environment. Set the Vercel project framework to Astro and Node to 24.x. Supply the Cloudinary settings server-side, and create a deploy hook for the target branch. Use a separate Supabase project and media account for staging when exercising writes.
-4. Sign in at `/admin` and enroll an authenticator. Verify that a signed-out user cannot view drafts or inbox data and that publishing makes an article appear after the build. Use a disposable image and contact message to confirm uploads, deletion, delivery, and rate limits. The upload limit accounts for Vercel’s request-body limit.
+3. Add the environment variables in [.env.example](.env.example) to the intended Vercel environment. Set the Vercel project framework to Astro and Node to 24.x. Keep the Cloudinary credentials and inbox key server-side. Generate the inbox key from 32 random bytes encoded as hex. Register the SHA-256 digest of that hex string in `portfolio_private.inbox_key` and set the key itself as `CONTACT_INBOX_KEY` in Vercel. Use a separate Supabase project and media account for staging when exercising writes.
+4. Sign in at `/admin` and enroll an authenticator. Verify that signed-out visitors cannot view drafts or inbox data. Verify that article, project, and photo changes appear on the next page load. Use a disposable image and contact message to confirm upload, deletion, delivery, and rate limits. The photo form resizes large images before sending them to Vercel.
 5. Set `SITE_URL` to the canonical public origin. The default is the existing Vercel address. Verify the homepage and sitemap in Search Console after release.
 
 ## Migrate and cut over
@@ -27,4 +27,4 @@ Use Node 24 and run `npm ci`, then `npm run dev`. Without provider settings the 
 - Keep private notes in an encrypted offline archive. The replacement does not expose the old notes API. Verify recovery before changing the old encryption key.
 - The dedicated Supabase project is named joydip-portfolio. The local databases are not a substitute for verifying the production export.
 - Review repository history for runtime database files and credentials, rotate any affected production secrets, and preserve a private database and media backup. The hosted database backup does not include Cloudinary originals. Verify restoration independently.
-- Before promotion, check the generated sitemap and robots file, real 404 responses, public content on mobile, and the complete publish-to-rebuild path. Keep a rollback deployment and retire the legacy backend only after confirming the migration.
+- Before promotion, check the sitemaps and robots file, real 404 responses, public content on mobile, and the complete publish flow. Keep a rollback deployment and retire the legacy backend only after confirming the migration.

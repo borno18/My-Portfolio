@@ -1,0 +1,24 @@
+---
+import Link from './Link.astro';
+import ProjectMedia from './ProjectMedia.astro';
+
+const { projects, heading = 'h3' } = Astro.props;
+const Heading = heading;
+---
+<div class="project-list">
+  {!projects.length && <p>No featured projects right now.</p>}
+  {projects.map(project => (
+    <article class:list={['project-row', { 'repository-row': !project.sections }]}>
+      {project.sections && <div class="project-visual"><ProjectMedia {project} /></div>}
+      <div class="project-copy">
+        <p class="meta">{project.type}</p>
+        <Heading>{project.name}</Heading>
+        {project.summary && <p>{project.summary}</p>}
+        {project.stack && <p class="project-stack">{project.stack}</p>}
+        <Link class="button secondary" href={project.sections ? '/work/' + project.slug : project.repo}>
+          {project.sections ? 'Read case study' : 'View repository'}
+        </Link>
+      </div>
+    </article>
+  ))}
+</div>

@@ -1,7 +1,9 @@
 ---
+export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import ArticleTeaser from '../../components/ArticleTeaser.astro';
 import { getPosts } from '../../lib/content.js';
+Astro.response.headers.set('Cache-Control', 'no-store');
 const posts = await getPosts();
 ---
 <Base title="Blog" description="Project notes and articles by Joydip Majumdar about web applications, mobile development, and software engineering.">

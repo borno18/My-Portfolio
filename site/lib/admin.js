@@ -1,5 +1,6 @@
 import { field, InputError } from './server.js';
 import { projects } from './work.js';
+import { getRepository } from './github.js';
 
 export const adminSections = { blog: 'Blog posts', inbox: 'Inbox', photos: 'Photography', projects: 'Projects' };
 
@@ -68,9 +69,32 @@ export async function updateInbox(db, form) {
 
 export async function saveProjectSettings(db, form) {
   const slug = field(form, 'slug', 100);
-  if (!projects.some(project => project.slug === slug)) throw new InputError('Choose a project from the portfolio.');
+  const placement = { featured: form.get('featured') === 'yes', display_order: displayOrder(form) };
+  const table = db.from('portfolio_project_settings');
+  const { error } = projects.some(project => project.slug === slug)
+    ? await table.upsert({ slug, ...placement })
+    : await table.update(placement).eq('slug', slug).select('slug').single();
+  if (error) throw error;
+}
+
+export async function featureRepository(db, form) {
+  const repo = await getRepository(field(form, 'repository', 100));
+  if (!repo) throw new InputError('Choose a public repository owned by borno18.');
+  if (projects.some(project => project.repo.toLowerCase().endsWith('/' + repo.name.toLowerCase()))) {
+    throw new InputError('This repository already has a case study. Use its placement settings.');
+  }
+  const { slug, ...repository } = repo;
   const { error } = await db.from('portfolio_project_settings').upsert({
-    slug, featured: form.get('featured') === 'yes', display_order: displayOrder(form),
-  });
+    slug, repository, featured: true, display_order: 100,
+  }, { onConflict: 'slug', ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+export async function changePostVisibility(db, form, remove) {
+  const slug = field(form, 'slug', 100);
+  if (remove && form.get('confirm') !== 'yes') throw new InputError('Confirm deletion before continuing.');
+  const table = db.from('portfolio_posts');
+  const mutation = remove ? table.delete() : table.update({ status: 'draft', published_at: null });
+  const { error } = await mutation.eq('slug', slug);
   if (error) throw error;
 }

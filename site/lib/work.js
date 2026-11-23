@@ -1,3 +1,5 @@
+import { githubOwner } from './github.js';
+
 export const projects = [
   {
     slug: 'attendance-app',
@@ -58,12 +60,25 @@ export const projects = [
 
 export function projectDisplay(settings = []) {
   const overrides = new Map(settings.map(setting => [setting.slug, setting]));
-  return projects.map((project, index) => {
+  const curated = projects.map((project, index) => {
     const setting = overrides.get(project.slug);
     return {
       ...project,
       featured: setting?.featured ?? project.featured !== false,
       display_order: setting?.display_order ?? index * 10,
     };
-  }).sort((a, b) => a.display_order - b.display_order);
+  });
+  const imported = settings.filter(setting => /^github-\d+$/.test(setting.slug) &&
+    /^[A-Za-z0-9_.-]{1,100}$/.test(setting.repository?.name ?? '') &&
+    !['.', '..'].includes(setting.repository.name)).map(setting => ({
+      slug: setting.slug,
+      name: setting.repository.name,
+      summary: setting.repository.description,
+      stack: setting.repository.language,
+      type: 'GitHub project',
+      repo: 'https://github.com/' + githubOwner + '/' + encodeURIComponent(setting.repository.name),
+      featured: setting.featured,
+      display_order: setting.display_order,
+    }));
+  return [...curated, ...imported].sort((a, b) => a.display_order - b.display_order || a.slug.localeCompare(b.slug));
 }

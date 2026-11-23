@@ -1,15 +1,18 @@
 ---
+export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import Link from '../../components/Link.astro';
 import EditorialMedia from '../../components/EditorialMedia.astro';
 import { editorialDetails } from '../../lib/editorial.js';
 import { getPosts, renderMarkdown } from '../../lib/content.js';
 
-export async function getStaticPaths() {
-  const posts = await getPosts();
-  return posts.map(post => ({ params: { slug: post.slug }, props: { post, related: posts.filter(item => item.slug !== post.slug).slice(0, 2) } }));
+Astro.response.headers.set('Cache-Control', 'no-store');
+const posts = await getPosts();
+const post = posts.find(item => item.slug === Astro.params.slug);
+if (!post) {
+  return Astro.rewrite('/404');
 }
-const { post, related } = Astro.props;
+const related = posts.filter(item => item.slug !== post.slug).slice(0, 2);
 const detail = editorialDetails(post);
 const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 'BlogPosting', headline: post.title, description: post.description, datePublished: post.published_at, url: new URL('/blog/' + post.slug, Astro.site).href, author: { '@type': 'Person', name: 'Joydip Majumdar', url: Astro.site.href } } : undefined;
 ---

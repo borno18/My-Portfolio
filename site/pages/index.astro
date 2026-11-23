@@ -1,14 +1,16 @@
 ---
+export const prerender = false;
 import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import Link from '../components/Link.astro';
-import ProjectMedia from '../components/ProjectMedia.astro';
+import ProjectList from '../components/ProjectList.astro';
 import ArticleTeaser from '../components/ArticleTeaser.astro';
 import portrait from '../assets/joydip-portrait.webp';
 import { projectDisplay } from '../lib/work.js';
 import { featuredPhoto } from '../lib/photos.js';
 import { getPosts, getProjectSettings } from '../lib/content.js';
 
+Astro.response.headers.set('Cache-Control', 'no-store');
 const [articles, settings] = await Promise.all([getPosts(), getProjectSettings()]);
 const posts = articles.slice(0, 2);
 const featuredProjects = projectDisplay(settings).filter(project => project.featured);
@@ -29,22 +31,8 @@ const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software
 
   <section class="project-section" id="projects">
     <div class="wrap band">
-      <div class="section-head"><h2>Projects</h2><Link href="https://github.com/borno18">GitHub profile</Link></div>
-      <div class="project-list">
-        {!featuredProjects.length && <p>No featured projects right now. Visit my GitHub profile for more.</p>}
-        {featuredProjects.map(project => (
-          <article class="project-row">
-            <div class="project-visual"><ProjectMedia project={project} /></div>
-            <div class="project-copy">
-              <p class="meta">{project.type}</p>
-              <h3>{project.name}</h3>
-              <p>{project.summary}</p>
-              <p class="project-stack">{project.stack}</p>
-              <Link class="button secondary" href={'/work/' + project.slug}>Read case study</Link>
-            </div>
-          </article>
-        ))}
-      </div>
+      <div class="section-head"><h2>Projects</h2><Link href="/projects">View projects</Link></div>
+      <ProjectList projects={featuredProjects} />
     </div>
   </section>
 

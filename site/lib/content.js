@@ -55,7 +55,7 @@ The app uses Bengali labels and numerals and includes the exam’s negative mark
 
 export const env = name => process.env[name] || import.meta.env?.[name];
 
-function reader() {
+export function publicDatabase() {
   const url = env('SUPABASE_URL');
   const key = env('SUPABASE_PUBLISHABLE_KEY');
   return url && key ? createClient(url, key, {
@@ -65,25 +65,24 @@ function reader() {
 }
 
 export async function getPosts() {
-  const db = reader();
+  const db = publicDatabase();
   if (!db) return basePosts;
   const { data, error } = await db.from('portfolio_posts')
     .select('slug,title,description,body,published_at').eq('status', 'published').order('published_at', { ascending: false });
-  if (error) throw new Error('Could not build the published blog from Supabase');
-  const slugs = new Set(data.map(post => post.slug));
-  return [...data, ...basePosts.filter(post => !slugs.has(post.slug))];
+  if (error) throw new Error('Could not load the published blog from Supabase');
+  return data;
 }
 
 export async function getProjectSettings() {
-  const db = reader();
+  const db = publicDatabase();
   if (!db) return [];
-  const { data, error } = await db.from('portfolio_project_settings').select('slug,featured,display_order');
+  const { data, error } = await db.from('portfolio_project_settings').select('slug,featured,display_order,repository');
   if (error) throw new Error('Could not build project placement from Supabase');
   return data;
 }
 
 export async function getPublishedPhotos() {
-  const db = reader();
+  const db = publicDatabase();
   if (!db) return [];
   const { data, error } = await db.from('portfolio_photos')
     .select('id,title,category,caption,alt,public_id,version,cloud_name,width,height').order('display_order').order('created_at', { ascending: false });

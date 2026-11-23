@@ -1,9 +1,11 @@
 ---
+export const prerender = false;
 import { Image, getImage } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import Link from '../components/Link.astro';
 import { localPhotos } from '../lib/photos.js';
 import { getPublishedPhotos, cloudImage } from '../lib/content.js';
+Astro.response.headers.set('Cache-Control', 'no-store');
 const remote = (await getPublishedPhotos()).map(photo => ({ ...photo, thumb: cloudImage(photo, 960), large: cloudImage(photo, 2000) })).filter(photo => photo.thumb && photo.large);
 const local = await Promise.all(localPhotos.map(async photo => ({ ...photo, large: (await getImage({ src: photo.src, width: 1600, format: 'webp' })).src })));
 const photos = [...remote, ...local];

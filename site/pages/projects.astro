@@ -1,0 +1,19 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import Link from '../components/Link.astro';
+import ProjectList from '../components/ProjectList.astro';
+import { getProjectSettings } from '../lib/content.js';
+import { projectDisplay } from '../lib/work.js';
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+const projects = projectDisplay(await getProjectSettings()).filter(project => project.featured);
+---
+<Base title="Projects" description="Selected software projects and GitHub repositories by Joydip Majumdar.">
+  <section class="wrap page-intro">
+    <h1>Projects</h1>
+    <p>Selected web and mobile applications.</p>
+    <Link href="https://github.com/borno18">GitHub profile</Link>
+  </section>
+  <div class="wrap band"><ProjectList {projects} heading="h2" /></div>
+</Base>

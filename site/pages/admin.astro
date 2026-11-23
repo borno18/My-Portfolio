@@ -2,25 +2,25 @@
 export const prerender = false;
 import Base from '../layouts/Base.astro';
 import { cloudImage, env, renderMarkdown } from '../lib/content.js';
-import { adminSections, parsePost, photoFields, recordId, savePost, saveProjectSettings, updateInbox } from '../lib/admin.js';
+import { adminSections, changePostVisibility, featureRepository, parsePost, photoFields, recordId, savePost, saveProjectSettings, updateInbox } from '../lib/admin.js';
 import { projectDisplay } from '../lib/work.js';
+import { listRepositories } from '../lib/github.js';
 import AdminPostEditor from '../components/AdminPostEditor.astro';
 import AdminPhotoFields from '../components/AdminPhotoFields.astro';
 import '../admin.css';
-import { authClient, ownerSession, sameOrigin, field, InputError, rebuild, publishPhoto, removePhoto } from '../lib/server.js';
+import { authClient, ownerSession, sameOrigin, field, InputError, publishPhoto, removePhoto } from '../lib/server.js';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 const db = authClient(Astro);
 const canUpload = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => env(key));
-const canRebuild = Boolean(env('VERCEL_DEPLOY_HOOK'));
-const inboxReady = Boolean(env('SUPABASE_SECRET_KEY') && (env('CONTACT_RATE_LIMIT_SECRET') || '').length >= 32);
+const inboxReady = /^[a-f0-9]{64}$/.test(env('CONTACT_INBOX_KEY') || '');
 const params = Astro.url.searchParams;
 const section = Object.hasOwn(adminSections, params.get('section')) ? params.get('section') : 'blog';
 const editing = section === 'blog' ? params.get('edit') : null;
 const filter = ['draft', 'published', 'unread', 'read'].includes(params.get('status')) ? params.get('status') : '';
 const search = (params.get('q') || '').trim().slice(0, 100);
-const statuses = new Map([['yes', 'Saved. A preview rebuild was requested.'], ['pending', 'Saved. The public preview will update after a rebuild.'], ['draft', 'Draft saved.'], ['message', 'Message status updated.']]);
+const statuses = new Map([['yes', 'Saved. Changes are live.'], ['draft', 'Draft saved.'], ['unpublished', 'Article moved to drafts.'], ['deleted', 'Article deleted.'], ['message', 'Message status updated.']]);
 let notice = statuses.get(params.get('saved')) || '';
 let factor;
 let qr;
@@ -29,16 +29,20 @@ let items = [];
 let post;
 let preview;
 let originalSlug = '';
+let repositories = [];
+let hasNext = false;
+let githubUnavailable = false;
+const repoPage = Math.max(1, Math.min(100, Number.parseInt(params.get('page'), 10) || 1));
 const redirectSaved = (target, saved) => Astro.redirect('/admin?section=' + target + '&saved=' + saved, 303);
-const redirectBuild = async target => redirectSaved(target, await rebuild() ? 'yes' : 'pending');
 
 if (Astro.request.method === 'POST') {
   if (!sameOrigin(Astro.request)) return new Response('Forbidden', { status: 403 });
   if (!db) return new Response('Admin is unavailable', { status: 503 });
   if (Number(Astro.request.headers.get('content-length')) > 3800000) return new Response('Upload is too large', { status: 413 });
+  let action;
   try {
     const form = await Astro.request.formData();
-    const action = form.get('action');
+    action = form.get('action');
     if (action === 'login') {
       const password = form.get('password');
       if (typeof password !== 'string' || !password.length || password.length > 256) throw new InputError('Check your password and try again.');
@@ -85,33 +89,40 @@ if (Astro.request.method === 'POST') {
         preview = renderMarkdown(post.body, Astro.site, Astro.url);
       } else {
         const changedPublic = await savePost(db, post, originalSlug, action === 'publish-post');
-        return changedPublic ? await redirectBuild('blog') : redirectSaved('blog', 'draft');
+        return redirectSaved('blog', changedPublic ? 'yes' : 'draft');
       }
+    } else if (action === 'unpublish-post' || action === 'delete-post') {
+      await changePostVisibility(db, form, action === 'delete-post');
+      return redirectSaved('blog', action === 'delete-post' ? 'deleted' : 'unpublished');
     } else if (action === 'publish-photo') {
       await publishPhoto(db, form, photoFields(form));
-      return await redirectBuild('photos');
+      return redirectSaved('photos', 'yes');
     } else if (action === 'edit-photo') {
       const saved = await db.from('portfolio_photos').update(photoFields(form)).eq('id', recordId(form)).select('id').single();
       if (saved.error) throw saved.error;
-      return await redirectBuild('photos');
+      return redirectSaved('photos', 'yes');
     } else if (action === 'remove-photo') {
       if (form.get('confirm') !== 'yes') throw new InputError('Confirm which photograph you want to remove.');
       await removePhoto(db, recordId(form));
-      return await redirectBuild('photos');
+      return redirectSaved('photos', 'yes');
     } else if (action === 'mark-message') {
       await updateInbox(db, form);
       return redirectSaved('inbox', 'message');
     } else if (action === 'save-project') {
       await saveProjectSettings(db, form);
-      return await redirectBuild('projects');
-    } else if (action === 'rebuild') {
-      return await redirectBuild(section);
+      return redirectSaved('projects', 'yes');
+    } else if (action === 'feature-repository') {
+      await featureRepository(db, form);
+      return redirectSaved('projects', 'yes');
     } else {
       return new Response('Invalid operation', { status: 400 });
     }
   } catch (error) {
     Astro.response.status = error instanceof InputError ? 400 : 502;
-    notice = error instanceof InputError ? error.message : 'The request failed. Check the dashboard before trying again.';
+    if (!(error instanceof InputError)) console.error('Admin operation failed', { action, code: error?.code, status: error?.http_code });
+    notice = error instanceof InputError ? error.message : action === 'publish-photo'
+      ? 'The photograph could not be saved. Check the gallery before trying again.'
+      : 'The request failed. Check the dashboard before trying again.';
   }
 }
 
@@ -147,8 +158,19 @@ if (owner.verified) {
     result = await query;
     items = result.data || [];
   } else {
-    result = await db.from('portfolio_project_settings').select('slug,featured,display_order');
+    const [settings, github] = await Promise.allSettled([
+      db.from('portfolio_project_settings').select('slug,featured,display_order,repository'),
+      listRepositories(repoPage),
+    ]);
+    result = settings.status === 'fulfilled' ? settings.value : { error: settings.reason };
     items = projectDisplay(result.data || []);
+    if (github.status === 'fulfilled') {
+      const imported = new Set(items.map(project => project.repo.toLowerCase().split('/').at(-1)));
+      repositories = github.value.repositories.filter(repo => !imported.has(repo.name.toLowerCase()));
+      hasNext = github.value.hasNext;
+    } else {
+      githubUnavailable = true;
+    }
   }
   if (result?.error) {
     Astro.response.status = 502;
@@ -163,7 +185,6 @@ const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', 
       <div class="admin-top">
         <div><h1>Portfolio admin</h1><p>Manage articles, photographs, inbox, and featured projects.</p></div>
         <div class="actions">
-          {canRebuild && <form method="post"><button name="action" value="rebuild" class="button secondary">Rebuild preview</button></form>}
           <form method="post"><button name="action" value="logout" class="button secondary">Sign out</button></form>
         </div>
       </div>
@@ -189,13 +210,17 @@ const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', 
                 <div><strong>{item.title}</strong><small>{item.slug}</small></div>
                 <div class="actions"><span class="admin-status">{item.status === 'published' ? 'Published' : 'Draft'}</span>
                   {item.published_at && <time datetime={item.published_at}>{formatDate(item.published_at)}</time>}
-                  <a href={'/admin?section=blog&edit=' + encodeURIComponent(item.slug)} aria-label={'Edit ' + item.title}>Edit</a></div>
+                  <a href={'/admin?section=blog&edit=' + encodeURIComponent(item.slug)} aria-label={'Edit ' + item.title}>Edit</a>
+                  {item.status === 'published' && <form method="post">
+                    <input type="hidden" name="slug" value={item.slug} />
+                    <button class="button secondary" name="action" value="unpublish-post" aria-label={'Unpublish ' + item.title}>Unpublish</button>
+                  </form>}</div>
               </li>)}
             </ul> : <p class="admin-empty">No articles match this view.</p>}
           </>)}
           {section === 'inbox' && <>
             <h2>Inbox</h2>
-            {!inboxReady && <p class="form-status">Visitors can prepare an email draft. Connect the server inbox settings to receive new messages here.</p>}
+            {!inboxReady && <p class="form-status">The message form is temporarily unavailable.</p>}
             <form method="get" class="admin-tools"><input type="hidden" name="section" value="inbox" />
               <label>Status<select name="status"><option value="">All messages</option><option value="unread" selected={filter === 'unread'}>Unread</option><option value="read" selected={filter === 'read'}>Read</option></select></label>
               <button class="button secondary">Filter inbox</button>
@@ -212,9 +237,10 @@ const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', 
           </>}
           {section === 'photos' && <>
             <h2>Photography</h2>
-            {canUpload ? <details><summary>Upload photograph</summary><form method="post" enctype="multipart/form-data">
+            {canUpload ? <details open={Astro.request.method === 'POST' && Astro.response.status >= 400}><summary>Upload photograph</summary><form method="post" enctype="multipart/form-data" data-photo-upload>
               <input type="hidden" name="action" value="publish-photo" /><AdminPhotoFields />
-              <label>Photograph · JPEG, PNG, or WebP under 3.5 MB<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+              <label>Photograph · JPEG, PNG, or WebP<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+              <p role="status" data-upload-status hidden></p>
               <button class="button">Upload and publish</button>
             </form></details> : <p class="form-status">Cloudinary credentials are required to upload or remove photographs.</p>}
             <p class="admin-empty">Lower display numbers appear first.</p>
@@ -230,16 +256,27 @@ const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', 
             </details>) : <p class="admin-empty">No uploaded photographs yet.</p>}
           </>}
           {section === 'projects' && <>
-            <h2>Projects</h2><p class="admin-empty">Choose the projects featured on the homepage and set their display order. Case study URLs stay available.</p>
+            <h2>Projects</h2><p class="admin-empty">Featured projects appear on the homepage and Projects page in display order.</p>
             {items.map(project => <details><summary>{project.name} · {project.featured ? 'Featured' : 'Unfeatured'}</summary>
               <form method="post"><input type="hidden" name="slug" value={project.slug} />
-                <label><span><input name="featured" type="checkbox" value="yes" checked={project.featured} /> Feature on the homepage</span></label>
+                <label><span><input name="featured" type="checkbox" value="yes" checked={project.featured} /> Feature on the site</span></label>
                 <label>Display order<input type="number" name="display_order" min="0" max="999" required value={project.display_order} /></label>
                 <button class="button" name="action" value="save-project">Save placement</button>
               </form>
             </details>)}
+            <h3>GitHub repositories</h3>
+            {githubUnavailable ? <p class="form-status">GitHub is temporarily unavailable. Refresh to try again.</p> :
+              repositories.length ? <ul class="admin-list">{repositories.map(repo => <li>
+                <div><strong>{repo.name}</strong>{repo.description && <small>{repo.description}</small>}</div>
+                <form method="post"><input type="hidden" name="repository" value={repo.name} />
+                  <button class="button secondary" name="action" value="feature-repository" aria-label={'Feature ' + repo.name}>Feature</button>
+                </form>
+              </li>)}</ul> : <p class="admin-empty">No additional repositories on this page.</p>}
+            {(repoPage > 1 || hasNext) && <div class="actions">
+              {repoPage > 1 && <a href={'/admin?section=projects&page=' + (repoPage - 1)}>Previous repositories</a>}
+              {hasNext && repoPage < 100 && <a href={'/admin?section=projects&page=' + (repoPage + 1)}>Next repositories</a>}
+            </div>}
           </>}
-          {!canRebuild && <p class="form-status">Connect a Vercel deploy hook to publish content changes automatically.</p>}
         </div>
       </div>
     </> : <>
@@ -267,3 +304,45 @@ const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', 
     </>}
   </div>
 </Base>
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-photo-upload]');
+  const input = form?.querySelector<HTMLInputElement>('input[type=file]');
+  const button = form?.querySelector<HTMLButtonElement>('button');
+  const status = form?.querySelector<HTMLElement>('[data-upload-status]');
+  if (form && input && button && status) {
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const file = input.files?.[0];
+      if (!file) return;
+      button.disabled = true;
+      status.hidden = false;
+      status.textContent = 'Preparing photograph…';
+      try {
+        const image = await createImageBitmap(file);
+        const resized = file.size > 3500000 || image.width * image.height > 32000000;
+        if (resized) {
+          const scale = Math.min(1, 2000 / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(image.width * scale));
+          canvas.height = Math.max(1, Math.round(image.height * scale));
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error();
+          context.fillStyle = '#fff';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+          if (!blob || blob.size > 3500000) throw new Error();
+          const transfer = new DataTransfer();
+          transfer.items.add(new File([blob], 'photograph.jpg', { type: 'image/jpeg' }));
+          input.files = transfer.files;
+        }
+        image.close();
+        status.textContent = 'Uploading photograph…';
+        form.submit();
+      } catch {
+        status.textContent = 'Could not prepare this photograph. Choose a JPEG, PNG, or WebP image.';
+        button.disabled = false;
+      }
+    });
+  }
+</script>

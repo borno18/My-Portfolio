@@ -45,7 +45,7 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
       <Link class="wordmark" href={path === '/' ? '#about' : '/'}>Joydip Majumdar<span>.</span></Link>
       <nav aria-label="Main">
         <Link href={path === '/' ? '#about' : '/#about'}>About</Link>
-        <Link href={path === '/' ? '#projects' : '/#projects'} aria-current={path.startsWith('/work/') ? 'true' : undefined}>Projects</Link>
+        <Link href="/projects" aria-current={path === '/projects' ? 'page' : path.startsWith('/work/') ? 'true' : undefined}>Projects</Link>
         <Link href="/blog" aria-current={path.startsWith('/blog') ? 'true' : undefined}>Blog</Link>
         <Link href="/photos" aria-current={path === '/photos' ? 'page' : undefined}>Photography</Link>
         <Link href="/contact" aria-current={path === '/contact' ? 'page' : undefined}>Contact</Link>

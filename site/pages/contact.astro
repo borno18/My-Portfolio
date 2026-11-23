@@ -1,20 +1,17 @@
 ---
 export const prerender = false;
 import { createHmac } from 'node:crypto';
-import { createClient } from '@supabase/supabase-js';
 import Base from '../layouts/Base.astro';
 import Link from '../components/Link.astro';
-import { env } from '../lib/content.js';
+import { env, publicDatabase } from '../lib/content.js';
 import { sameOrigin, field, InputError } from '../lib/server.js';
-import { emailAddress, emailDraft, topics } from '../lib/contact.js';
+import { emailAddress, topics } from '../lib/contact.js';
 
 Astro.response.headers.set('Cache-Control', 'no-store');
-const url = env('SUPABASE_URL');
-const key = env('SUPABASE_SECRET_KEY');
-const salt = env('CONTACT_RATE_LIMIT_SECRET');
-const ready = Boolean(url && key && salt && salt.length >= 32);
+const db = publicDatabase();
+const key = env('CONTACT_INBOX_KEY') || '';
+const ready = Boolean(db && /^[a-f0-9]{64}$/.test(key));
 const sent = ready && Astro.url.searchParams.get('sent') === 'yes';
-let draft = '';
 let notice = '';
 let values = {};
 if (Astro.request.method === 'POST') {
@@ -31,26 +28,21 @@ if (Astro.request.method === 'POST') {
     const message = field(form, 'message', 2800);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new InputError('Enter a valid email address.');
     if (!topics.includes(topic)) throw new InputError('Choose a topic for your message.');
-    if (!ready) {
-      draft = emailDraft({ name, email, topic, message });
-    } else {
-      const ip = Astro.request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-      const fingerprint = createHmac('sha256', salt).update(ip).digest('hex');
-      const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { data, error } = await db.rpc('portfolio_receive_message', { sender_fingerprint: fingerprint, sender_name: name, sender_email: email, sender_message: 'Topic: ' + topic + '\n\n' + message });
-      if (error) throw error;
-      if (data === 'limited') {
-        Astro.response.status = 429;
-        notice = 'Too many messages. Try again later or email me directly.';
-        draft = emailDraft({ name, email, topic, message });
-      } else if (data === 'received') {
-        return Astro.redirect('/contact?sent=yes', 303);
-      } else { throw new Error('Unexpected contact result'); }
-    }
+    if (!ready) throw new Error('Contact inbox is unavailable');
+    const ip = Astro.request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const fingerprint = createHmac('sha256', key).update('contact-ip:' + ip).digest('hex');
+    const { data, error } = await db.rpc('portfolio_receive_message', {
+      delivery_key: key, sender_fingerprint: fingerprint, sender_name: name, sender_email: email, sender_message: 'Topic: ' + topic + '\n\n' + message,
+    });
+    if (error) throw error;
+    if (data === 'received') return Astro.redirect('/contact?sent=yes', 303);
+    if (data !== 'limited') throw new Error('Unexpected contact result');
+    Astro.response.status = 429;
+    notice = 'Too many messages. Try again later or email me directly.';
   } catch (error) {
     Astro.response.status = error instanceof InputError ? 400 : 502;
-    notice = error instanceof InputError ? error.message : 'I couldn’t confirm delivery. You can try again or use the email draft.';
-    if (!(error instanceof InputError) && topics.includes(values.topic)) draft = emailDraft(values);
+    if (!(error instanceof InputError)) console.error('Contact delivery failed', { code: error?.code });
+    notice = error instanceof InputError ? error.message : 'I couldn’t confirm delivery. Try again or email me directly.';
   }
 }
 ---
@@ -61,7 +53,7 @@ if (Astro.request.method === 'POST') {
       <p>Tell me what you’re working on. I’m happy to talk about software projects, roles, and photography.</p>
       <div class="contact-method">
         <span class="meta">Email</span>
-        <Link href={'mailto:' + emailAddress}>{emailAddress}</Link>
+        <Link href={'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailAddress)}>{emailAddress}</Link>
         <button type="button" class="copy-button" data-copy-email={emailAddress} hidden>Copy address</button>
         <span role="status" data-copy-status></span>
       </div>
@@ -69,11 +61,10 @@ if (Astro.request.method === 'POST') {
     </div>
     <div class="contact-panel">
       <h2>Write a message</h2>
-      <p class="contact-hint">{ready ? 'Your message goes to my portfolio inbox.' : 'Prepare a draft and send it from your email app.'}</p>
+      <p class="contact-hint">{ready ? 'Your message goes to my portfolio inbox. I’ll use your email to reply.' : 'The message form is temporarily unavailable. You can reach me by email.'}</p>
       {sent && <p class="form-status" role="status">Your message was received.</p>}
       {notice && <p class="form-status" role="alert">{notice}</p>}
-      {draft && <p class="form-status" role="status"><Link href={draft}>Open your email draft</Link></p>}
-      <form method="post" data-contact-form data-mode={ready ? 'inbox' : 'email'}>
+      <form method="post" data-contact-form>
         <div class="contact-fields">
           <label>Name<input name="name" autocomplete="name" required maxlength="100" value={values.name} /></label>
           <label>Email<input name="email" type="email" autocomplete="email" spellcheck="false" required maxlength="254" value={values.email} /></label>
@@ -82,17 +73,12 @@ if (Astro.request.method === 'POST') {
         <label>Message<textarea name="message" required maxlength="2800" rows="6">{values.message || ''}</textarea></label>
         <p class="form-count" data-message-count hidden></p>
         <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
-        <button class="button" data-send>{ready ? 'Send message' : 'Prepare email'}</button>
-        <p class="form-status draft-status" data-draft-status role="status" hidden>
-          Your draft is ready. <a data-email-draft>Open email app</a>
-        </p>
+        <button class="button" data-send disabled={!ready}>Send message</button>
       </form>
     </div>
   </section>
 </Base>
 <script>
-  import { emailDraft } from '../lib/contact.js';
-
   const form = document.querySelector<HTMLFormElement>('[data-contact-form]');
   const message = form?.querySelector<HTMLTextAreaElement>('textarea[name="message"]');
   const count = form?.querySelector<HTMLElement>('[data-message-count]');
@@ -102,27 +88,16 @@ if (Astro.request.method === 'POST') {
     message.addEventListener('input', update);
     update();
   }
-  if (form?.dataset.mode === 'email') {
-    const draft = form.querySelector<HTMLAnchorElement>('[data-email-draft]');
-    const status = form.querySelector<HTMLElement>('[data-draft-status]');
-    form.addEventListener('submit', event => {
-      if (!draft || !status) return;
-      event.preventDefault();
-      const values = Object.fromEntries(new FormData(form));
-      draft.href = emailDraft(values);
-      status.hidden = false;
-      draft.focus();
-    });
-    form.addEventListener('input', () => { if (status) status.hidden = true; });
-  } else {
+  if (form) {
     const button = form?.querySelector<HTMLButtonElement>('[data-send]');
+    const ready = button && !button.disabled;
     form?.addEventListener('submit', () => {
-      if (!button) return;
+      if (!button || !ready) return;
       button.disabled = true;
       button.textContent = 'Sending…';
     });
     window.addEventListener('pageshow', () => {
-      if (!button) return;
+      if (!button || !ready) return;
       button.disabled = false;
       button.textContent = 'Send message';
     });

@@ -12,10 +12,24 @@ const { post, originalSlug, preview, editing } = Astro.props;
     <label>Description<input name="description" required maxlength="300" value={post.description} /></label>
     <label>Article in Markdown<textarea name="body" required maxlength="65000" rows="14">{post.body}</textarea></label>
     <div class="actions">
-      <button class="button secondary" name="action" value="save-draft">{post.status === 'published' ? 'Unpublish to draft' : 'Save draft'}</button>
+      {post.status !== 'published' && <button class="button secondary" name="action" value="save-draft">Save draft</button>}
       <button class="button secondary" name="action" value="preview-post" formnovalidate>Preview Markdown</button>
       <button class="button" name="action" value="publish-post">{post.status === 'published' ? 'Update published article' : 'Publish article'}</button>
     </div>
   </form>
+  {originalSlug && <>
+    {post.status === 'published' && <form method="post">
+      <input type="hidden" name="slug" value={originalSlug} />
+      <button class="button secondary" name="action" value="unpublish-post">Unpublish to draft</button>
+    </form>}
+    <details>
+      <summary>Delete article</summary>
+      <form method="post">
+        <input type="hidden" name="slug" value={originalSlug} />
+        <label><span><input type="checkbox" name="confirm" value="yes" required /> Permanently delete this article</span></label>
+        <button class="button secondary" name="action" value="delete-post">Delete permanently</button>
+      </form>
+    </details>
+  </>}
   {preview && <div class="admin-preview"><h3>Markdown preview</h3><div class="article article-prose" set:html={preview} /></div>}
 </section>
