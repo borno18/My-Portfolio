@@ -18,13 +18,19 @@ export default defineConfig({
   vite: {
     build: { assetsInlineLimit: 0 },
     css: { postcss: { plugins: [] } },
-    ssr: {
-      // Bundle the sanitizer tree so Vercel can load its mixed CommonJS and ESM dependencies.
-      noExternal: [
-        'sanitize-html', 'escape-string-regexp', 'htmlparser2', 'is-plain-object',
-        'launder', 'parse-srcset', 'postcss', 'dayjs', 'nanoid', 'picocolors',
-        'source-map-js', 'domelementtype', 'domhandler', 'domutils', 'dom-serializer', 'entities',
-      ],
-    },
+    plugins: [{
+      name: 'portfolio-sanitizer-bundle',
+      apply: 'build',
+      config: () => ({
+        ssr: {
+          // Keep the sanitizer's mixed CommonJS and ESM dependencies inside the Vercel bundle.
+          noExternal: [
+            'sanitize-html', 'escape-string-regexp', 'htmlparser2', 'is-plain-object',
+            'launder', 'parse-srcset', 'postcss', 'dayjs', 'nanoid', 'picocolors',
+            'source-map-js', 'domelementtype', 'domhandler', 'domutils', 'dom-serializer', 'entities',
+          ],
+        },
+      }),
+    }],
   },
 });
