@@ -1,0 +1,60 @@
+---
+export const prerender = false;
+import { createHmac } from 'node:crypto';
+import { createClient } from '@supabase/supabase-js';
+import Base from '../layouts/Base.astro';
+import { env } from '../lib/content.js';
+import { sameOrigin, field, InputError } from '../lib/server.js';
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+const url = env('SUPABASE_URL');
+const key = env('SUPABASE_SECRET_KEY');
+const salt = env('CONTACT_RATE_LIMIT_SECRET');
+const ready = Boolean(url && key && salt && salt.length >= 32);
+const sent = Astro.url.searchParams.get('sent') === 'yes';
+let notice = '';
+let values = {};
+if (Astro.request.method === 'POST') {
+  if (!sameOrigin(Astro.request)) return new Response('Forbidden', { status: 403 });
+  if (!ready) return new Response('Contact form is unavailable', { status: 503 });
+  if (Number(Astro.request.headers.get('content-length')) > 20000) return new Response('Message is too large', { status: 413 });
+  try {
+    const form = await Astro.request.formData();
+    if (form.get('website')) return Astro.redirect('/contact?sent=yes', 303);
+    const name = field(form, 'name', 100);
+    const email = field(form, 'email', 254).toLowerCase();
+    const message = field(form, 'message', 3000);
+    values = { name, email, message };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new InputError('Enter a valid email address.');
+    const ip = Astro.request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const fingerprint = createHmac('sha256', salt).update(ip).digest('hex');
+    const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const { data, error } = await db.rpc('portfolio_receive_message', { sender_fingerprint: fingerprint, sender_name: name, sender_email: email, sender_message: message });
+    if (error) throw error;
+    if (data === 'limited') {
+      Astro.response.status = 429;
+      notice = 'Too many messages. Try again later or email me directly.';
+    } else if (data === 'received') {
+      return Astro.redirect('/contact?sent=yes', 303);
+    } else { throw new Error('Unexpected contact result'); }
+  } catch (error) {
+    Astro.response.status = error instanceof InputError ? 400 : 502;
+    notice = error instanceof InputError ? error.message : 'The message could not be confirmed. Try again or email me directly.';
+  }
+}
+---
+<Base title="Contact" description="Contact Joydip Majumdar about software engineering projects, opportunities, or photography.">
+  <section class="reading page-intro">
+    <h1>Get in touch</h1>
+    <p>Email me at <a href="mailto:joydipmajumdarborno@gmail.com">joydipmajumdarborno@gmail.com</a>.</p>
+    {sent && <p role="status">Your message was received.</p>}
+    {notice && <p role="alert">{notice}</p>}
+    {ready && <form method="post">
+      <label>Name<input name="name" autocomplete="name" required maxlength="100" value={values.name} /></label>
+      <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254" value={values.email} /></label>
+      <label>Message<textarea name="message" required maxlength="3000">{values.message || ''}</textarea></label>
+      <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+      <button class="button">Send message</button>
+    </form>}
+  </section>
+</Base>

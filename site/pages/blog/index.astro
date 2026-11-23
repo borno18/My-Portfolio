@@ -1,0 +1,11 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPosts } from '../../lib/content.js';
+const posts = await getPosts();
+---
+<Base title="Writing" description="Project notes and articles by Joydip Majumdar about web applications, mobile development, and software engineering.">
+  <section class="wrap page-intro"><h1>Writing</h1><p>Notes about how the projects work and the decisions behind them.</p></section>
+  <div class="wrap band list">
+    {posts.map(post => <a href={'/blog/' + post.slug}><div><strong>{post.title}</strong><p>{post.description}</p></div><span>{post.isProjectNote ? 'Project note' : 'Article'}</span></a>)}
+  </div>
+</Base>

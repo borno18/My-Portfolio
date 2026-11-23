@@ -20,3 +20,13 @@ Thumbs.db
 # editor
 .vscode/*
 !.vscode/extensions.json
+
+# Astro and Vercel build output
+.astro/
+.vercel/
+
+# Runtime databases and Python caches
+*.db
+*.db-wal
+*.db-shm
+__pycache__/

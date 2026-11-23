@@ -1,0 +1,13 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPosts, renderMarkdown } from '../../lib/content.js';
+export async function getStaticPaths() {
+  return (await getPosts()).map(post => ({ params: { slug: post.slug }, props: { post } }));
+}
+const { post } = Astro.props;
+const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 'BlogPosting', headline: post.title, description: post.description, datePublished: post.published_at, url: new URL('/blog/' + post.slug, Astro.site).href, author: { '@type': 'Person', name: 'Joydip Majumdar', url: Astro.site.href } } : undefined;
+---
+<Base title={post.title} description={post.description} schema={schema}>
+  <div class="reading page-intro"><a href="/blog">All writing</a><h1>{post.title}</h1><p>{post.description}</p>{post.published_at && <p class="meta"><time datetime={post.published_at}>{new Intl.DateTimeFormat('en', { dateStyle: 'long', timeZone: 'Asia/Dhaka' }).format(new Date(post.published_at))}</time></p>}</div>
+  <article class="reading article" set:html={renderMarkdown(post.body)} />
+</Base>

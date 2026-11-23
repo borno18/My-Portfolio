@@ -1,0 +1,43 @@
+export const projects = [
+  {
+    slug: 'swe-sports-week',
+    name: 'SWE Sports Week',
+    type: 'Web application',
+    summary: 'A tournament hub for SWE Society, SUST, with fixtures, live brackets, and an organizer dashboard.',
+    stack: 'Next.js · TypeScript · Turso',
+    repo: 'https://github.com/borno18/swe-sports-week',
+    live: 'https://swe-sports-week.vercel.app/',
+    sections: [
+      ['The problem', 'Running several sports at once means keeping fixtures, venues, and results in sync for organizers and participants. A correction should reach the public bracket without asking organizers to rebuild it.'],
+      ['The workflow', 'Organizers publish a bracket, then record match results. Winners advance automatically. If a result is corrected, dependent matches are cleared and unrelated results are preserved.'],
+      ['The engineering', 'Result propagation and change history are saved in a transaction. Version checks protect against stale edits. Public pages check a small revision endpoint and refresh when results change.'],
+    ]
+  },
+  {
+    slug: 'pookie-prep',
+    name: 'Pookie Prep',
+    type: 'Android application',
+    summary: 'A Bengali-first Flutter app for medical admission practice that runs offline.',
+    stack: 'Flutter · Dart · SQLite',
+    repo: 'https://github.com/borno18/PookiePrep',
+    release: 'https://github.com/borno18/PookiePrep/releases/tag/v.1.1',
+    sections: [
+      ['The problem', 'Medical admission candidates need a way to practice general knowledge in Bengali, review mistakes, and keep studying with an unreliable connection.'],
+      ['The workflow', 'Learners choose topics and question counts, work through a timed practice session, then review missed answers in a dedicated notebook.'],
+      ['The engineering', 'Questions ship with the app and progress stays on device. Bengali numerals and labels are part of the core interface. The scoring rules award one mark for a correct answer and deduct a quarter mark for a wrong one.'],
+    ]
+  },
+  {
+    slug: 'queuestorm',
+    name: 'QueueStorm Investigator',
+    type: 'Team backend project',
+    summary: 'A FastAPI service that checks transaction evidence and helps support agents route tickets.',
+    stack: 'FastAPI · Python · Pydantic',
+    repo: 'https://github.com/borno18/CSE_FEST_Preli',
+    sections: [
+      ['The problem', 'During a high-volume campaign, support agents need a consistent way to compare a customer’s report with recent transaction records.'],
+      ['The workflow', 'The service validates a support ticket, compares it with the supplied ledger, and returns a typed verdict, suggested department, and draft reply for a human agent.'],
+      ['The engineering', 'Deterministic matching establishes the evidence first. Gemini assists with classification and drafting, with a rules-based fallback when the model is unavailable. This case study describes the team’s system.'],
+    ]
+  }
+];

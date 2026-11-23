@@ -1,0 +1,17 @@
+---
+import { Image } from 'astro:assets';
+import sports from '../assets/sports.png';
+import pookieHome from '../assets/pookie-home.png';
+import pookieQuiz from '../assets/pookie-quiz.png';
+const { project, large = false } = Astro.props;
+---
+{project.slug === 'swe-sports-week' ? (
+  <Image src={sports} alt="SWE Sports Week homepage showing the list of sports" width={large ? 1200 : 640} format="webp" loading={large ? 'eager' : 'lazy'} />
+) : project.slug === 'pookie-prep' ? (
+  <div class="project-art phone-art">
+    <Image src={pookieHome} alt="Pookie Prep’s Bengali home screen" width={340} format="webp" />
+    <Image src={pookieQuiz} alt="Pookie Prep’s Bengali multiple choice practice screen" width={340} format="webp" />
+  </div>
+) : (
+  <div class="project-art"><span>support ticket</span><span>↓ evidence matching</span><span>↓ structured verdict</span></div>
+)}

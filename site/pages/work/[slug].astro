@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProjectMedia from '../../components/ProjectMedia.astro';
+import { projects } from '../../lib/work.js';
+export function getStaticPaths() { return projects.map(project => ({ params: { slug: project.slug }, props: { project } })); }
+const { project } = Astro.props;
+---
+<Base title={project.name} description={project.summary}>
+  <section class="wrap page-intro">
+    <a href="/#projects">Selected work</a>
+    <h1>{project.name}</h1>
+    <p>{project.summary}</p>
+    <div class="actions"><a class="button" href={project.repo}>Source code</a>{project.live && <a href={project.live}>Live site</a>}{project.release && <a href={project.release}>Android release</a>}</div>
+  </section>
+  <div class="wrap case-media"><ProjectMedia project={project} large /></div>
+  <article class="reading article">
+    <p class="meta">{project.stack}</p>
+    {project.sections.map(([title, body]) => <section><h2>{title}</h2><p>{body}</p></section>)}
+  </article>
+</Base>

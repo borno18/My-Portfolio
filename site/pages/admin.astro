@@ -1,0 +1,161 @@
+---
+export const prerender = false;
+import Base from '../layouts/Base.astro';
+import { authClient, ownerSession, sameOrigin, field, InputError, rebuild, publishPhoto, removePhoto } from '../lib/server.js';
+
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+const db = authClient(Astro);
+const status = Astro.url.searchParams.get('saved');
+let notice = ({ yes: 'Saved. The public site is rebuilding.', pending: 'Saved. Start a rebuild to update the public site.', draft: 'Draft saved.' })[status] || '';
+let factor;
+let qr;
+let owner = db ? await ownerSession(db) : { user: null, verified: false };
+let posts = [];
+let photos = [];
+let messages = [];
+
+if (Astro.request.method === 'POST') {
+  if (!sameOrigin(Astro.request)) return new Response('Forbidden', { status: 403 });
+  if (!db) return new Response('Admin is unavailable', { status: 503 });
+  if (Number(Astro.request.headers.get('content-length')) > 3800000) return new Response('Upload is too large', { status: 413 });
+  try {
+    const form = await Astro.request.formData();
+    const action = form.get('action');
+    if (action === 'login') {
+      const { error } = await db.auth.signInWithPassword({ email: field(form, 'email', 254), password: field(form, 'password', 256) });
+      if (error || !(await ownerSession(db)).user) {
+        await db.auth.signOut({ scope: 'local' });
+        throw new InputError('Could not sign in. Check your credentials.');
+      }
+      return Astro.redirect('/admin', 303);
+    }
+    if (!owner.user) return new Response('Unauthorized', { status: 401 });
+    if (action === 'logout') {
+      await db.auth.signOut({ scope: 'local' });
+      return Astro.redirect('/admin', 303);
+    }
+    if (action === 'enroll' && !owner.verified) {
+      const listed = await db.auth.mfa.listFactors();
+      if (listed.error) throw listed.error;
+      if (listed.data.totp.length) throw new InputError('An authenticator is already enrolled. Enter its code.');
+      for (const old of listed.data.all.filter(item => item.status === 'unverified' && item.factor_type === 'totp')) {
+        const removed = await db.auth.mfa.unenroll({ factorId: old.id });
+        if (removed.error) throw removed.error;
+      }
+      const result = await db.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Portfolio', issuer: 'Joydip Portfolio' });
+      if (result.error) throw result.error;
+      factor = result.data.id;
+      if (result.data.totp.qr_code.startsWith('data:image/svg+xml;')) qr = result.data.totp.qr_code;
+      notice = 'Scan the code with your authenticator app, then enter its six-digit code.';
+    } else if (action === 'verify' && !owner.verified) {
+      const code = field(form, 'code', 6);
+      if (!/^\d{6}$/.test(code)) throw new InputError('Enter a six-digit authenticator code.');
+      const result = await db.auth.mfa.challengeAndVerify({ factorId: field(form, 'factor', 36), code });
+      if (result.error) throw new InputError('That code could not be verified. Try a fresh code.');
+      return Astro.redirect('/admin', 303);
+    } else if (!owner.verified) {
+      return new Response('Authenticator verification required', { status: 403 });
+    } else if (action === 'save-post') {
+      const slug = field(form, 'slug', 100);
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) throw new InputError('Use lower-case words separated by hyphens for the URL slug.');
+      const old = await db.from('portfolio_posts').select('status,published_at').eq('slug', slug).maybeSingle();
+      if (old.error) throw old.error;
+      const published = form.get('publish') === 'yes';
+      const entry = { slug, title: field(form, 'title', 160), description: field(form, 'description', 300), body: field(form, 'body', 65000), status: published ? 'published' : 'draft', published_at: published ? old.data?.published_at || new Date().toISOString() : null };
+      const saved = await db.from('portfolio_posts').upsert(entry);
+      if (saved.error) throw saved.error;
+      const needsRebuild = published || old.data?.status === 'published';
+      return Astro.redirect('/admin?saved=' + (needsRebuild ? await rebuild() ? 'yes' : 'pending' : 'draft'), 303);
+    } else if (action === 'publish-photo') {
+      await publishPhoto(db, form);
+      return Astro.redirect('/admin?saved=' + (await rebuild() ? 'yes' : 'pending'), 303);
+    } else if (action === 'remove-photo') {
+      if (form.get('confirm') !== 'yes') throw new InputError('Confirm which photograph you want to remove.');
+      await removePhoto(db, field(form, 'id', 36));
+      return Astro.redirect('/admin?saved=' + (await rebuild() ? 'yes' : 'pending'), 303);
+    } else if (action === 'rebuild') {
+      return Astro.redirect('/admin?saved=' + (await rebuild() ? 'yes' : 'pending'), 303);
+    } else {
+      return new Response('Invalid operation', { status: 400 });
+    }
+  } catch (error) {
+    Astro.response.status = error instanceof InputError ? 400 : 502;
+    notice = error instanceof InputError ? error.message : 'The request failed. Check the dashboard before trying again.';
+  }
+}
+
+if (owner.user && !owner.verified && !factor) {
+  const { data } = await db.auth.mfa.listFactors();
+  factor = data?.totp?.[0]?.id;
+}
+if (owner.verified) {
+  const result = await Promise.all([
+    db.from('portfolio_posts').select('*').order('published_at', { ascending: false }),
+    db.from('portfolio_photos').select('id,title,category').order('created_at', { ascending: false }),
+    db.from('portfolio_messages').select('name,email,message,created_at').order('created_at', { ascending: false }).limit(100),
+  ]);
+  if (result.some(item => item.error)) notice ||= 'Some dashboard records could not be loaded.';
+  [posts, photos, messages] = result.map(item => item.data || []);
+}
+const entries = [{ slug: '', title: '', description: '', body: '', status: 'draft' }, ...posts];
+---
+<Base title="Owner dashboard" description="Private portfolio publishing." privatePage>
+  <div class="reading admin">
+    <section class="page-intro"><h1>Portfolio admin</h1><p>Manage writing, photography, and contact messages.</p></section>
+    {notice && <p role="status">{notice}</p>}
+    {!db ? <p>Publishing is unavailable until the owner connects the dashboard.</p> : !owner.user ? (
+      <form method="post">
+        <input type="hidden" name="action" value="login" />
+        <label>Email<input name="email" type="email" autocomplete="username" required maxlength="254" /></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256" /></label>
+        <button class="button">Sign in</button>
+      </form>
+    ) : <>
+      <form method="post"><button name="action" value="logout" class="button secondary">Sign out</button></form>
+      {!owner.verified ? (
+        factor ? <form method="post">
+          {qr && <img src={qr} alt="QR code for adding the portfolio to your authenticator" width="188" height="188" />}
+          <input type="hidden" name="factor" value={factor} /><input type="hidden" name="action" value="verify" />
+          <label>Authenticator code<input name="code" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required /></label>
+          <button class="button">Verify</button>
+          {qr && <button name="action" value="enroll" formnovalidate class="button secondary">Restart setup</button>}
+        </form> : <form method="post"><p>Set up an authenticator before opening the dashboard.</p><button name="action" value="enroll" class="button">Set up authenticator</button></form>
+      ) : <>
+        <section><h2>Writing</h2>
+          {entries.map(post => <details><summary>{post.title ? post.title + ' · ' + post.status : 'New article'}</summary>
+            <form method="post">
+              <input type="hidden" name="action" value="save-post" />
+              <label>Title<input name="title" required maxlength="160" value={post.title} /></label>
+              <label>URL slug<input name="slug" required maxlength="100" pattern="[a-z0-9]+(-[a-z0-9]+)*" value={post.slug} readonly={Boolean(post.slug)} /></label>
+              <label>Description<input name="description" required maxlength="300" value={post.description} /></label>
+              <label>Article in Markdown<textarea name="body" required maxlength="65000" rows="12">{post.body}</textarea></label>
+              <label><span><input name="publish" type="checkbox" value="yes" checked={post.status === 'published'} /> Publish to the site</span></label>
+              <button class="button">Save article</button>
+            </form>
+          </details>)}
+        </section>
+        <section><h2>Photography</h2>
+          <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="publish-photo" />
+            <label>Title<input name="title" required maxlength="140" /></label>
+            <label>Alt text<input name="alt" required maxlength="250" /></label>
+            <label>Category<input name="category" required maxlength="40" /></label>
+            <label>Caption<textarea name="caption" maxlength="1000"></textarea></label>
+            <label>Photograph · JPEG, PNG, or WebP under 3.5 MB<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+            <button class="button">Upload and publish</button>
+          </form>
+          {photos.map(photo => <details><summary>{photo.title} · {photo.category}</summary><form method="post">
+            <input type="hidden" name="id" value={photo.id} />
+            <label><span><input name="confirm" type="checkbox" value="yes" required /> Confirm removal</span></label>
+            <button class="button secondary" name="action" value="remove-photo">Remove from the gallery</button>
+          </form></details>)}
+        </section>
+        <section><h2>Inbox</h2>
+          {messages.length ? messages.map(message => <details><summary>{message.name} · {new Date(message.created_at).toLocaleDateString('en', { timeZone: 'Asia/Dhaka' })}</summary><p>{message.email}</p><p style="white-space:pre-wrap">{message.message}</p></details>) : <p>No messages yet.</p>}
+        </section>
+        <form method="post"><button name="action" value="rebuild" class="button secondary">Rebuild public site</button></form>
+      </>}
+    </>}
+  </div>
+</Base>

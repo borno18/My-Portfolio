@@ -1,0 +1,55 @@
+---
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/dm-sans/600.css';
+import '@fontsource/fraunces/500.css';
+import '../style.css';
+
+const { title, description, privatePage = false, socialImage, schema } = Astro.props;
+const noIndex = privatePage || process.env.VERCEL_ENV === 'preview' || process.env.PORTFOLIO_NOINDEX === '1';
+const canonical = new URL(Astro.url.pathname.replace(/\/$/, '') || '/', Astro.site);
+const fullTitle = title ? `${title} | Joydip Majumdar` : 'Joydip Majumdar | Software Engineering Portfolio';
+const previewImage = new URL(socialImage || '/social.png', Astro.site);
+const path = Astro.url.pathname.replace(/\/$/, '') || '/';
+---
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{fullTitle}</title>
+  <meta name="description" content={description} />
+  {noIndex ? <meta name="robots" content="noindex, nofollow" /> : <>
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content={schema?.['@type'] === 'BlogPosting' ? 'article' : 'website'} />
+    <meta property="og:image" content={previewImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={previewImage} />
+    {schema && <script type="application/ld+json" set:html={JSON.stringify(schema).replaceAll('<', '\\u003c')} />}
+  </>}
+  <meta name="theme-color" content="#E8D2B5" />
+  <link rel="icon" type="image/svg+xml" href="/jm.svg" />
+</head>
+<body>
+  <a href="#main" class="skip">Skip to content</a>
+  <header class="site-header wrap">
+    <a class="wordmark" href="/">Joydip Majumdar<span>.</span></a>
+    <nav aria-label="Main">
+      <a href="/#projects">Work</a>
+      <a href="/blog" aria-current={path.startsWith('/blog') ? 'page' : undefined}>Writing</a>
+      <a href="/photos" aria-current={path === '/photos' ? 'page' : undefined}>Photography</a>
+      <a href="/#contact">Contact</a>
+    </nav>
+  </header>
+  <main id="main" tabindex="-1"><slot /></main>
+  <footer class="wrap site-footer">
+    <span>© {new Date().getFullYear()} Joydip Majumdar</span>
+    <div><a href="https://github.com/borno18">GitHub</a><a href="https://www.linkedin.com/in/joydip-majumdar/">LinkedIn</a></div>
+  </footer>
+</body>
+</html>
