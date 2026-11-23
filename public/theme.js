@@ -14,6 +14,7 @@
     const button = document.querySelector('[data-theme-toggle]');
     if (button) {
       button.setAttribute('aria-pressed', String(theme === 'dark'));
+      button.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
       button.hidden = false;
     }
   }
