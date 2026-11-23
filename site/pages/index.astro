@@ -1,7 +1,10 @@
 ---
 import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
+import Link from '../components/Link.astro';
 import ProjectMedia from '../components/ProjectMedia.astro';
+import ArticleTeaser from '../components/ArticleTeaser.astro';
+import portrait from '../assets/joydip-portrait.webp';
 import { projects } from '../lib/work.js';
 import { featuredPhoto } from '../lib/photos.js';
 import { getPosts } from '../lib/content.js';
@@ -9,49 +12,52 @@ import { getPosts } from '../lib/content.js';
 const posts = (await getPosts()).slice(0, 2);
 const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software Engineering Student', url: Astro.site.href, affiliation: { '@type': 'CollegeOrUniversity', name: 'Shahjalal University of Science and Technology' }, sameAs: ['https://github.com/borno18', 'https://www.linkedin.com/in/joydip-majumdar/'] };
 ---
-<Base description="Joydip Majumdar is a software engineering student at SUST in Sylhet, Bangladesh. Explore his engineering projects, writing, and Fujifilm photography." schema={{ '@context': 'https://schema.org', '@type': 'ProfilePage', mainEntity: person }}>
-  <section class="hero wrap" aria-labelledby="intro">
-    <div>
-      <h1 id="intro">Joydip <span>Majumdar</span></h1>
+<Base description="Joydip Majumdar is a software engineering student at SUST in Sylhet, Bangladesh. Explore his projects, engineering blog, and Fujifilm photography." schema={{ '@context': 'https://schema.org', '@type': 'ProfilePage', mainEntity: person }}>
+  <section class="hero wrap" id="about" aria-labelledby="intro">
+    <div class="hero-copy">
+      <h1 id="intro">Hi, I’m Joydip Majumdar.</h1>
       <p class="role">Software engineering student at SUST</p>
-      <p class="intro">I build web and mobile applications. In Sylhet, I also take my Fujifilm out to photograph the city.</p>
-      <div class="actions"><a class="button" href="#projects">View selected work</a><a href="#contact">Get in touch</a></div>
+      <p class="intro">I build web and mobile apps, from offline attendance tools to campus tournament software. Away from my desk, I photograph everyday life in Sylhet.</p>
+      <div class="actions"><Link class="button" href="#projects">View projects</Link><Link class="button secondary" href="https://www.linkedin.com/in/joydip-majumdar/">LinkedIn</Link></div>
     </div>
-    <figure class="hero-figure">
-      <a href="/work/swe-sports-week"><ProjectMedia project={projects[0]} large /></a>
-      <figcaption><span>SWE Sports Week</span><span>Tournament hub for SUST</span></figcaption>
-    </figure>
-  </section>
-  <section class="band wrap" id="projects">
-    <div class="section-head"><h2>Selected work</h2><a href="https://github.com/borno18">View GitHub profile</a></div>
-    <div class="work-grid">
-      {projects.map(project => (
-        <article class="project">
-          <ProjectMedia project={project} />
-          <div class="project-body">
-            <span class="meta">{project.type}</span>
-            <h3><a href={`/work/${project.slug}`}>{project.name}</a></h3>
-            <p>{project.summary}</p>
-            <span class="meta">{project.stack}</span>
-          </div>
-        </article>
-      ))}
+    <div class="portrait-panel">
+      <Image src={portrait} alt="Portrait of Joydip Majumdar" width={960} widths={[400, 640, 960]} sizes="(max-width: 680px) 86vw, 43vw" format="webp" loading="eager" fetchpriority="high" />
     </div>
   </section>
-  <section class="band wrap" id="blog">
-    <div class="section-head"><h2>Writing</h2><a href="/blog">All writing</a></div>
-    <div class="list">{posts.map(post => <a href={`/blog/${post.slug}`}><strong>{post.title}</strong><span>{post.isProjectNote ? 'Project note' : 'Article'}</span></a>)}</div>
+
+  <section class="project-section" id="projects">
+    <div class="wrap band">
+      <div class="section-head"><h2>Projects</h2><Link href="https://github.com/borno18">GitHub profile</Link></div>
+      <div class="project-list">
+        {projects.filter(project => project.featured !== false).map(project => (
+          <article class="project-row">
+            <div class="project-visual"><ProjectMedia project={project} /></div>
+            <div class="project-copy">
+              <p class="meta">{project.type}</p>
+              <h3>{project.name}</h3>
+              <p>{project.summary}</p>
+              <p class="project-stack">{project.stack}</p>
+              <Link class="button secondary" href={'/work/' + project.slug}>Read case study</Link>
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
   </section>
+
+  <section class="band wrap news-section" id="blog">
+    <div class="section-head newspaper-head"><div><h2>Blog</h2><p>Notes on building software.</p></div><Link href="/blog">View all articles</Link></div>
+    <div class="newspaper-grid">{posts.map(post => <ArticleTeaser post={post} />)}</div>
+  </section>
+
   <section class="photo-band" id="photography">
     <div class="wrap photo-feature">
-      <figure><Image src={featuredPhoto.src} alt="A Dream Afternoon, a street photograph taken in Sylhet" width={1200} widths={[480, 800, 1200]} sizes="(max-width: 620px) 100vw, 55vw" format="webp" /><figcaption>A Dream Afternoon · Sylhet</figcaption></figure>
-      <div><h2>Photography</h2><p>Street scenes, architecture, and festivals from Sylhet, photographed on Fujifilm.</p><a class="button" href="/photos">Browse photographs</a></div>
+      <figure><Image src={featuredPhoto.src} alt="A balcony and plants in the late afternoon sun in Sylhet" width={1200} widths={[480, 800, 1200]} sizes="(max-width: 680px) 100vw, 48vw" format="webp" /><figcaption>A Dream Afternoon · Sylhet</figcaption></figure>
+      <div><h2>Photography</h2><p>Street scenes, architecture, and festivals from Sylhet, photographed on Fujifilm.</p><Link class="button" href="/photos">Browse photographs</Link></div>
     </div>
   </section>
-  <section class="band wrap about" id="about">
-    <div><h2>About me</h2><p>I study software engineering at Shahjalal University of Science and Technology. My projects range from mobile apps that work offline to web tools for campus events.</p>
-      <details><summary>Engineering activity</summary><p><a href="https://github.com/borno18">GitHub</a> · <a href="https://leetcode.com/u/nightguy01/">LeetCode</a> · <a href="https://codeforces.com/profile/nightguy01">Codeforces</a></p></details>
-    </div>
-    <div id="contact"><h2>Get in touch</h2><p>For questions about a project or an opportunity, send me an email or connect on LinkedIn.</p><div class="actions"><a class="button" href="mailto:joydipmajumdarborno@gmail.com">Email Joydip</a><a href="/contact">Contact form</a></div></div>
+  <section class="band wrap homepage-contact" id="contact">
+    <div><h2>Contact</h2><p>Have a project in mind, a role to discuss, or a question about a photograph?</p></div>
+    <div class="actions"><Link class="button" href="/contact">Write a message</Link><Link href="https://www.linkedin.com/in/joydip-majumdar/">Connect on LinkedIn</Link></div>
   </section>
 </Base>

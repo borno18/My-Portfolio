@@ -1,5 +1,18 @@
 export const projects = [
   {
+    slug: 'attendance-app',
+    name: 'Smart Proximity Attendance',
+    type: 'Android application',
+    summary: 'An offline Flutter app for running class attendance over nearby device connections.',
+    stack: 'Flutter · Dart · SQLite · Android Nearby Connections',
+    repo: 'https://github.com/borno18/Android-Project',
+    sections: [
+      ['The problem', 'Instructors need a quick, reliable way to collect attendance when classroom Wi-Fi is unreliable. The workflow also needs to accommodate large rosters and give instructors a record to review after class.'],
+      ['The workflow', 'An instructor imports a class roster, starts a nearby session, and monitors check-ins. The app stores session history locally and exports attendance reports as CSV.'],
+      ['The engineering', 'Flutter powers the interface, Android Nearby Connections links devices during a session, and SQLite keeps rosters and attendance history on the device. The repository also documents OCR-assisted roster entry.'],
+    ],
+  },
+  {
     slug: 'swe-sports-week',
     name: 'SWE Sports Week',
     type: 'Web application',
@@ -15,6 +28,7 @@ export const projects = [
   },
   {
     slug: 'pookie-prep',
+    featured: false,
     name: 'Pookie Prep',
     type: 'Android application',
     summary: 'A Bengali-first Flutter app for medical admission practice that runs offline.',

@@ -4,6 +4,7 @@ import '@fontsource/dm-sans/500.css';
 import '@fontsource/dm-sans/600.css';
 import '@fontsource/fraunces/500.css';
 import '../style.css';
+import Link from '../components/Link.astro';
 
 const { title, description, privatePage = false, socialImage, schema } = Astro.props;
 const noIndex = privatePage || process.env.VERCEL_ENV === 'preview' || process.env.PORTFOLIO_NOINDEX === '1';
@@ -32,24 +33,30 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
     <meta name="twitter:image" content={previewImage} />
     {schema && <script type="application/ld+json" set:html={JSON.stringify(schema).replaceAll('<', '\\u003c')} />}
   </>}
-  <meta name="theme-color" content="#E8D2B5" />
+  <meta name="theme-color" content="#f5efe5" />
+  <script is:inline src="/theme.js"></script>
   <link rel="icon" type="image/svg+xml" href="/jm.svg" />
 </head>
 <body>
   <a href="#main" class="skip">Skip to content</a>
-  <header class="site-header wrap">
-    <a class="wordmark" href="/">Joydip Majumdar<span>.</span></a>
-    <nav aria-label="Main">
-      <a href="/#projects">Work</a>
-      <a href="/blog" aria-current={path.startsWith('/blog') ? 'page' : undefined}>Writing</a>
-      <a href="/photos" aria-current={path === '/photos' ? 'page' : undefined}>Photography</a>
-      <a href="/#contact">Contact</a>
-    </nav>
+  <span id="new-tab-description" hidden>Opens in a new tab</span>
+  <header class="masthead">
+    <div class="site-header wrap">
+      <Link class="wordmark" href={path === '/' ? '#about' : '/'}>Joydip Majumdar<span>.</span></Link>
+      <nav aria-label="Main">
+        <Link href={path === '/' ? '#about' : '/#about'}>About</Link>
+        <Link href={path === '/' ? '#projects' : '/#projects'} aria-current={path.startsWith('/work/') ? 'true' : undefined}>Projects</Link>
+        <Link href="/blog" aria-current={path.startsWith('/blog') ? 'true' : undefined}>Blog</Link>
+        <Link href="/photos" aria-current={path === '/photos' ? 'page' : undefined}>Photography</Link>
+        <Link href="/contact" aria-current={path === '/contact' ? 'page' : undefined}>Contact</Link>
+      </nav>
+      <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" hidden>Dark mode</button>
+    </div>
   </header>
   <main id="main" tabindex="-1"><slot /></main>
   <footer class="wrap site-footer">
     <span>© {new Date().getFullYear()} Joydip Majumdar</span>
-    <div><a href="https://github.com/borno18">GitHub</a><a href="https://www.linkedin.com/in/joydip-majumdar/">LinkedIn</a></div>
+    <div><Link href="https://github.com/borno18">GitHub</Link><Link href="https://www.linkedin.com/in/joydip-majumdar/">LinkedIn</Link></div>
   </footer>
 </body>
 </html>

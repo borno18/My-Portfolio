@@ -19,6 +19,24 @@ The [SWE Sports Week project](/work/swe-sports-week) records the result, its pro
 
 The design question is whether each later result still makes sense after the edit. Testing with byes and different bracket sizes gives that rule more coverage than testing just a clean eight-team example.`,
 }, {
+  slug: 'offline-attendance',
+  title: 'Taking classroom attendance without Wi-Fi',
+  description: 'How a nearby device session and on-device storage keep the classroom workflow moving.',
+  isProjectNote: true,
+  body: `Attendance has three parts: knowing who belongs to the class, recording check-ins, and giving the instructor a usable record afterwards. The [Smart Proximity Attendance app](/work/attendance-app) keeps those steps on the devices in the room.
+
+## Start with the roster
+
+An instructor can import a roster and use it again for later sessions. This separates the work of preparing the class list from the work of checking who arrived that day.
+
+## Keep the session local
+
+During class, the instructor’s device advertises a nearby session. Student devices connect locally, and the instructor can see check-ins accumulate without waiting on campus Wi-Fi.
+
+## Make the record portable
+
+The device retains session history in SQLite. A CSV export gives instructors a familiar format to inspect or take into another tool after the session ends.`,
+}, {
   slug: 'pookie-prep-offline',
   title: 'How Pookie Prep works offline',
   description: 'Bundled questions, local progress, and a Bengali-first practice interface.',
@@ -67,7 +85,16 @@ export async function getPublishedPhotos() {
 export function renderMarkdown(body) {
   return sanitizeHtml(marked.parse(body, { async: false }), {
     allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
-    allowedAttributes: { a: ['href', 'title'], img: ['src', 'alt', 'title', 'width', 'height'] },
+    allowedAttributes: { a: ['href', 'title', 'target', 'rel', 'aria-describedby'], img: ['src', 'alt', 'title', 'width', 'height'] },
+    transformTags: {
+      a: (_, { href, title }) => {
+        const attributes = { href, title };
+        if (href && /^(?:https:\/\/|\/(?!\/)|\.{1,2}\/|[a-z0-9._-]+(?:[/?]|$))/i.test(href)) {
+          Object.assign(attributes, { target: '_blank', rel: 'noopener noreferrer', 'aria-describedby': 'new-tab-description' });
+        }
+        return { tagName: 'a', attribs: Object.fromEntries(Object.entries(attributes).filter(([, value]) => value != null)) };
+      },
+    },
     allowedSchemes: ['https', 'mailto'],
     allowProtocolRelative: false,
     allowedSchemesAppliedToAttributes: ['href', 'src'],

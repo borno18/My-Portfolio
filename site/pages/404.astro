@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
+import Link from '../components/Link.astro';
 ---
 <Base title="Page not found" description="This page could not be found." privatePage>
-  <section class="wrap page-intro"><h1>Page not found</h1><p>The address may have changed.</p><div class="actions"><a class="button" href="/">Back to the portfolio</a><a href="/blog">Browse writing</a></div></section>
+  <section class="wrap page-intro"><h1>Page not found</h1><p>The address may have changed.</p><div class="actions"><Link class="button" href="/">Back to the portfolio</Link><Link href="/blog">Browse writing</Link></div></section>
 </Base>

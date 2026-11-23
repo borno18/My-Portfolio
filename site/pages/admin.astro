@@ -1,11 +1,15 @@
 ---
 export const prerender = false;
 import Base from '../layouts/Base.astro';
+import { env } from '../lib/content.js';
 import { authClient, ownerSession, sameOrigin, field, InputError, rebuild, publishPhoto, removePhoto } from '../lib/server.js';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
 const db = authClient(Astro);
+const canUpload = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'].every(key => env(key));
+const canRebuild = Boolean(env('VERCEL_DEPLOY_HOOK'));
+const inboxReady = Boolean(env('SUPABASE_SECRET_KEY') && (env('CONTACT_RATE_LIMIT_SECRET') || '').length >= 32);
 const status = Astro.url.searchParams.get('saved');
 let notice = ({ yes: 'Saved. The public site is rebuilding.', pending: 'Saved. Start a rebuild to update the public site.', draft: 'Draft saved.' })[status] || '';
 let factor;
@@ -23,7 +27,9 @@ if (Astro.request.method === 'POST') {
     const form = await Astro.request.formData();
     const action = form.get('action');
     if (action === 'login') {
-      const { error } = await db.auth.signInWithPassword({ email: field(form, 'email', 254), password: field(form, 'password', 256) });
+      const password = form.get('password');
+      if (typeof password !== 'string' || !password.length || password.length > 256) throw new InputError('Check your password and try again.');
+      const { error } = await db.auth.signInWithPassword({ email: field(form, 'email', 254), password });
       if (error || !(await ownerSession(db)).user) {
         await db.auth.signOut({ scope: 'local' });
         throw new InputError('Could not sign in. Check your credentials.');
@@ -104,7 +110,7 @@ const entries = [{ slug: '', title: '', description: '', body: '', status: 'draf
   <div class="reading admin">
     <section class="page-intro"><h1>Portfolio admin</h1><p>Manage writing, photography, and contact messages.</p></section>
     {notice && <p role="status">{notice}</p>}
-    {!db ? <p>Publishing is unavailable until the owner connects the dashboard.</p> : !owner.user ? (
+    {!db ? <p class="form-status">Owner sign-in requires a connected Supabase account.</p> : !owner.user ? (
       <form method="post">
         <input type="hidden" name="action" value="login" />
         <label>Email<input name="email" type="email" autocomplete="username" required maxlength="254" /></label>
@@ -117,7 +123,7 @@ const entries = [{ slug: '', title: '', description: '', body: '', status: 'draf
         factor ? <form method="post">
           {qr && <img src={qr} alt="QR code for adding the portfolio to your authenticator" width="188" height="188" />}
           <input type="hidden" name="factor" value={factor} /><input type="hidden" name="action" value="verify" />
-          <label>Authenticator code<input name="code" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required /></label>
+          <label>Authenticator code<input name="code" autocomplete="one-time-code" spellcheck="false" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required /></label>
           <button class="button">Verify</button>
           {qr && <button name="action" value="enroll" formnovalidate class="button secondary">Restart setup</button>}
         </form> : <form method="post"><p>Set up an authenticator before opening the dashboard.</p><button name="action" value="enroll" class="button">Set up authenticator</button></form>
@@ -136,7 +142,7 @@ const entries = [{ slug: '', title: '', description: '', body: '', status: 'draf
           </details>)}
         </section>
         <section><h2>Photography</h2>
-          <form method="post" enctype="multipart/form-data">
+          {canUpload ? <form method="post" enctype="multipart/form-data">
             <input type="hidden" name="action" value="publish-photo" />
             <label>Title<input name="title" required maxlength="140" /></label>
             <label>Alt text<input name="alt" required maxlength="250" /></label>
@@ -144,7 +150,7 @@ const entries = [{ slug: '', title: '', description: '', body: '', status: 'draf
             <label>Caption<textarea name="caption" maxlength="1000"></textarea></label>
             <label>Photograph · JPEG, PNG, or WebP under 3.5 MB<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
             <button class="button">Upload and publish</button>
-          </form>
+          </form> : <p class="form-status">Connect Cloudinary to upload and publish photographs.</p>}
           {photos.map(photo => <details><summary>{photo.title} · {photo.category}</summary><form method="post">
             <input type="hidden" name="id" value={photo.id} />
             <label><span><input name="confirm" type="checkbox" value="yes" required /> Confirm removal</span></label>
@@ -152,9 +158,10 @@ const entries = [{ slug: '', title: '', description: '', body: '', status: 'draf
           </form></details>)}
         </section>
         <section><h2>Inbox</h2>
+          {!inboxReady && <p class="form-status">Visitors can prepare an email draft. Connect the server inbox settings to accept messages here.</p>}
           {messages.length ? messages.map(message => <details><summary>{message.name} · {new Date(message.created_at).toLocaleDateString('en', { timeZone: 'Asia/Dhaka' })}</summary><p>{message.email}</p><p style="white-space:pre-wrap">{message.message}</p></details>) : <p>No messages yet.</p>}
         </section>
-        <form method="post"><button name="action" value="rebuild" class="button secondary">Rebuild public site</button></form>
+        {canRebuild ? <form method="post"><button name="action" value="rebuild" class="button secondary">Rebuild public site</button></form> : <p class="form-status">A Vercel deploy hook is required to publish changes automatically.</p>}
       </>}
     </>}
   </div>

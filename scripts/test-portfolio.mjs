@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { cloudImage, renderMarkdown } from '../site/lib/content.js';
+import { emailDraft } from '../site/lib/contact.js';
 
 const db = new PGlite();
 try {
@@ -44,5 +45,11 @@ try {
   assert.doesNotMatch(unsafe, /javascript:|onerror|evil.example|<script/);
   assert.match(renderMarkdown('[Case study](/work/demo)'), /href="\/work\/demo"/);
   assert.equal(cloudImage({ cloud_name: 'evil.example', public_id: 'x', version: 1 }, 960), '');
+  assert.match(renderMarkdown('[New tab](https://example.test:8443/doc)'), /target="_blank" rel="noopener noreferrer"/);
+  assert.doesNotMatch(renderMarkdown('[Same page](#details) [Email](mailto:preview@example.test)'), /target="_blank"/);
+  const draft = emailDraft({ name: 'A & B', email: 'preview@example.test', topic: 'Photography', message: 'Hello & goodbye' });
+  const data = new URL(draft);
+  assert.equal(data.searchParams.get('subject'), 'Photography · Portfolio');
+  assert.equal(data.searchParams.get('body'), 'Hello & goodbye\n\nFrom: A & B\nReply to: preview@example.test');
   console.log('Verified visibility, MFA policy, contact limits, and safe Markdown.');
 } finally { await db.close(); }

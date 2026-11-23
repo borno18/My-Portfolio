@@ -1,0 +1,10 @@
+---
+const { href, 'aria-describedby': description, describeNewTab = true, ...attributes } = Astro.props;
+const opensTab = typeof href === 'string' && !/^(#|mailto:|tel:)/i.test(href);
+---
+<a {...attributes} href={href}
+  target={opensTab ? '_blank' : undefined}
+  rel={opensTab ? 'noopener noreferrer' : undefined}
+  aria-describedby={[description, opensTab && describeNewTab && 'new-tab-description'].filter(Boolean).join(' ') || undefined}>
+  <slot />
+</a>

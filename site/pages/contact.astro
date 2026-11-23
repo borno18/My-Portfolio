@@ -3,58 +3,142 @@ export const prerender = false;
 import { createHmac } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import Base from '../layouts/Base.astro';
+import Link from '../components/Link.astro';
 import { env } from '../lib/content.js';
 import { sameOrigin, field, InputError } from '../lib/server.js';
+import { emailAddress, emailDraft, topics } from '../lib/contact.js';
 
 Astro.response.headers.set('Cache-Control', 'no-store');
 const url = env('SUPABASE_URL');
 const key = env('SUPABASE_SECRET_KEY');
 const salt = env('CONTACT_RATE_LIMIT_SECRET');
 const ready = Boolean(url && key && salt && salt.length >= 32);
-const sent = Astro.url.searchParams.get('sent') === 'yes';
+const sent = ready && Astro.url.searchParams.get('sent') === 'yes';
+let draft = '';
 let notice = '';
 let values = {};
 if (Astro.request.method === 'POST') {
   if (!sameOrigin(Astro.request)) return new Response('Forbidden', { status: 403 });
-  if (!ready) return new Response('Contact form is unavailable', { status: 503 });
   if (Number(Astro.request.headers.get('content-length')) > 20000) return new Response('Message is too large', { status: 413 });
   try {
     const form = await Astro.request.formData();
     if (form.get('website')) return Astro.redirect('/contact?sent=yes', 303);
+    const submitted = (name, max) => typeof form.get(name) === 'string' ? String(form.get(name)).slice(0, max) : '';
+    values = { name: submitted('name', 100), email: submitted('email', 254), topic: submitted('topic', 40), message: submitted('message', 2800) };
     const name = field(form, 'name', 100);
     const email = field(form, 'email', 254).toLowerCase();
-    const message = field(form, 'message', 3000);
-    values = { name, email, message };
+    const topic = field(form, 'topic', 40);
+    const message = field(form, 'message', 2800);
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new InputError('Enter a valid email address.');
-    const ip = Astro.request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    const fingerprint = createHmac('sha256', salt).update(ip).digest('hex');
-    const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data, error } = await db.rpc('portfolio_receive_message', { sender_fingerprint: fingerprint, sender_name: name, sender_email: email, sender_message: message });
-    if (error) throw error;
-    if (data === 'limited') {
-      Astro.response.status = 429;
-      notice = 'Too many messages. Try again later or email me directly.';
-    } else if (data === 'received') {
-      return Astro.redirect('/contact?sent=yes', 303);
-    } else { throw new Error('Unexpected contact result'); }
+    if (!topics.includes(topic)) throw new InputError('Choose a topic for your message.');
+    if (!ready) {
+      draft = emailDraft({ name, email, topic, message });
+    } else {
+      const ip = Astro.request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+      const fingerprint = createHmac('sha256', salt).update(ip).digest('hex');
+      const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+      const { data, error } = await db.rpc('portfolio_receive_message', { sender_fingerprint: fingerprint, sender_name: name, sender_email: email, sender_message: 'Topic: ' + topic + '\n\n' + message });
+      if (error) throw error;
+      if (data === 'limited') {
+        Astro.response.status = 429;
+        notice = 'Too many messages. Try again later or email me directly.';
+        draft = emailDraft({ name, email, topic, message });
+      } else if (data === 'received') {
+        return Astro.redirect('/contact?sent=yes', 303);
+      } else { throw new Error('Unexpected contact result'); }
+    }
   } catch (error) {
     Astro.response.status = error instanceof InputError ? 400 : 502;
-    notice = error instanceof InputError ? error.message : 'The message could not be confirmed. Try again or email me directly.';
+    notice = error instanceof InputError ? error.message : 'I couldn’t confirm delivery. You can try again or use the email draft.';
+    if (!(error instanceof InputError) && topics.includes(values.topic)) draft = emailDraft(values);
   }
 }
 ---
 <Base title="Contact" description="Contact Joydip Majumdar about software engineering projects, opportunities, or photography.">
-  <section class="reading page-intro">
-    <h1>Get in touch</h1>
-    <p>Email me at <a href="mailto:joydipmajumdarborno@gmail.com">joydipmajumdarborno@gmail.com</a>.</p>
-    {sent && <p role="status">Your message was received.</p>}
-    {notice && <p role="alert">{notice}</p>}
-    {ready && <form method="post">
-      <label>Name<input name="name" autocomplete="name" required maxlength="100" value={values.name} /></label>
-      <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254" value={values.email} /></label>
-      <label>Message<textarea name="message" required maxlength="3000">{values.message || ''}</textarea></label>
-      <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
-      <button class="button">Send message</button>
-    </form>}
+  <section class="wrap page-intro contact-layout">
+    <div class="contact-intro">
+      <h1>Contact</h1>
+      <p>Tell me what you’re working on. I’m happy to talk about software projects, roles, and photography.</p>
+      <div class="contact-method">
+        <span class="meta">Email</span>
+        <Link href={'mailto:' + emailAddress}>{emailAddress}</Link>
+        <button type="button" class="copy-button" data-copy-email={emailAddress} hidden>Copy address</button>
+        <span role="status" data-copy-status></span>
+      </div>
+      <div class="contact-method"><span class="meta">LinkedIn</span><Link href="https://www.linkedin.com/in/joydip-majumdar/">Connect with me</Link></div>
+    </div>
+    <div class="contact-panel">
+      <h2>Write a message</h2>
+      <p class="contact-hint">{ready ? 'Your message goes to my portfolio inbox.' : 'Prepare a draft and send it from your email app.'}</p>
+      {sent && <p class="form-status" role="status">Your message was received.</p>}
+      {notice && <p class="form-status" role="alert">{notice}</p>}
+      {draft && <p class="form-status" role="status"><Link href={draft}>Open your email draft</Link></p>}
+      <form method="post" data-contact-form data-mode={ready ? 'inbox' : 'email'}>
+        <div class="contact-fields">
+          <label>Name<input name="name" autocomplete="name" required maxlength="100" value={values.name} /></label>
+          <label>Email<input name="email" type="email" autocomplete="email" spellcheck="false" required maxlength="254" value={values.email} /></label>
+        </div>
+        <label>Topic<select name="topic" required><option value="">Select a topic</option>{topics.map(topic => <option selected={values.topic === topic} value={topic}>{topic}</option>)}</select></label>
+        <label>Message<textarea name="message" required maxlength="2800" rows="6">{values.message || ''}</textarea></label>
+        <p class="form-count" data-message-count hidden></p>
+        <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+        <button class="button" data-send>{ready ? 'Send message' : 'Prepare email'}</button>
+        <p class="form-status draft-status" data-draft-status role="status" hidden>
+          Your draft is ready. <a data-email-draft>Open email app</a>
+        </p>
+      </form>
+    </div>
   </section>
 </Base>
+<script>
+  import { emailDraft } from '../lib/contact.js';
+
+  const form = document.querySelector<HTMLFormElement>('[data-contact-form]');
+  const message = form?.querySelector<HTMLTextAreaElement>('textarea[name="message"]');
+  const count = form?.querySelector<HTMLElement>('[data-message-count]');
+  if (message && count) {
+    const update = () => { count.textContent = message.value.length + ' / ' + message.maxLength; };
+    count.hidden = false;
+    message.addEventListener('input', update);
+    update();
+  }
+  if (form?.dataset.mode === 'email') {
+    const draft = form.querySelector<HTMLAnchorElement>('[data-email-draft]');
+    const status = form.querySelector<HTMLElement>('[data-draft-status]');
+    form.addEventListener('submit', event => {
+      if (!draft || !status) return;
+      event.preventDefault();
+      const values = Object.fromEntries(new FormData(form));
+      draft.href = emailDraft(values);
+      status.hidden = false;
+      draft.focus();
+    });
+    form.addEventListener('input', () => { if (status) status.hidden = true; });
+  } else {
+    const button = form?.querySelector<HTMLButtonElement>('[data-send]');
+    form?.addEventListener('submit', () => {
+      if (!button) return;
+      button.disabled = true;
+      button.textContent = 'Sending…';
+    });
+    window.addEventListener('pageshow', () => {
+      if (!button) return;
+      button.disabled = false;
+      button.textContent = 'Send message';
+    });
+  }
+
+  const copy = document.querySelector<HTMLButtonElement>('[data-copy-email]');
+  const feedback = document.querySelector<HTMLElement>('[data-copy-status]');
+  if (copy && feedback && navigator.clipboard) {
+    copy.hidden = false;
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(copy.dataset.copyEmail || '');
+        feedback.textContent = 'Address copied.';
+      } catch {
+        feedback.textContent = 'Copy is unavailable. Select the address above to copy it.';
+      }
+    });
+  }
+</script>

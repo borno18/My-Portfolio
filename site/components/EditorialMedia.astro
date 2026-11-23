@@ -1,0 +1,8 @@
+---
+import ProjectMedia from './ProjectMedia.astro';
+const { cover, large = false } = Astro.props;
+const slugs = { sports: 'swe-sports-week', attendance: 'attendance-app', pookie: 'pookie-prep' };
+---
+{cover ? <ProjectMedia project={{ slug: slugs[cover] }} large={large} /> : (
+  <div class="editorial-type" aria-hidden="true"><span>Engineering</span><i></i><span>Blog</span></div>
+)}
