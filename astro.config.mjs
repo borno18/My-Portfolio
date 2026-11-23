@@ -15,5 +15,9 @@ export default defineConfig({
   })],
   server: { host: '127.0.0.1' },
   devToolbar: { enabled: false },
-  vite: { build: { assetsInlineLimit: 0 }, css: { postcss: { plugins: [] } } },
+  vite: {
+    build: { assetsInlineLimit: 0 },
+    css: { postcss: { plugins: [] } },
+    ssr: { noExternal: ['sanitize-html', 'htmlparser2'] },
+  },
 });
