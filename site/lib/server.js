@@ -108,12 +108,8 @@ async function cloudinaryImage(action, config, params, file) {
   return response.json();
 }
 
-export async function publishPhoto(db, form, metadata) {
-  const file = form.get('photo');
+async function uploadPhotoAsset(config, file, public_id) {
   if (!(file instanceof File) || !file.size || file.size > 3500000) throw new InputError('Select an image under 3.5 MB.');
-  const config = mediaConfig();
-  const id = randomUUID();
-  const public_id = 'portfolio/' + id;
   let bytes;
   try {
     const image = sharp(Buffer.from(await file.arrayBuffer()), { limitInputPixels: 32000000 });
@@ -122,21 +118,68 @@ export async function publishPhoto(db, form, metadata) {
     bytes = await image.rotate().resize(2000, 2000, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer();
   } catch { throw new InputError('Choose a valid JPEG, PNG, or WebP with at most 32 megapixels.'); }
   const uploaded = await cloudinaryImage('upload', config, { public_id, overwrite: false }, bytes);
-  const { error } = await db.from('portfolio_photos').insert({ ...metadata, id, public_id, cloud_name: config.cloud_name, version: uploaded.version, width: uploaded.width, height: uploaded.height });
+  return { public_id, cloud_name: config.cloud_name, version: uploaded.version, width: uploaded.width, height: uploaded.height };
+}
+
+export async function publishPhoto(db, form, metadata) {
+  const config = mediaConfig();
+  const id = randomUUID();
+  const asset = await uploadPhotoAsset(config, form.get('photo'), 'portfolio/' + id);
+  const { error } = await db.from('portfolio_photos').insert({ ...metadata, ...asset, id });
   if (error) {
-    await cloudinaryImage('destroy', config, { public_id, invalidate: true }).catch(() => {});
+    await cleanUpPhotoAsset(config, asset.public_id);
     throw error;
   }
 }
 
-export async function removePhoto(db, id) {
-  if (!/^[a-f0-9-]{36}$/.test(id)) throw new InputError('Choose a photograph to remove.');
+async function currentPhotoAsset(db, id) {
   const { data, error } = await db.from('portfolio_photos').select('public_id,cloud_name').eq('id', id).single();
   if (error) throw error;
-  const config = mediaConfig();
-  if (data.cloud_name !== config.cloud_name) throw new InputError('This photograph belongs to another media account.');
-  const deleted = await cloudinaryImage('destroy', config, { public_id: data.public_id, invalidate: true });
+  return data;
+}
+
+function matchPhotoAsset(query, publicId) {
+  return publicId ? query.eq('public_id', publicId) : query.is('public_id', null);
+}
+
+async function destroyPhotoAsset(config, public_id) {
+  const deleted = await cloudinaryImage('destroy', config, { public_id, invalidate: true });
   if (!['ok', 'not found'].includes(deleted.result)) throw new Error('Media removal failed');
-  const result = await db.from('portfolio_photos').delete().eq('id', id);
-  if (result.error) throw result.error;
+}
+
+async function cleanUpPhotoAsset(config, publicId) {
+  try { await destroyPhotoAsset(config, publicId); }
+  catch { console.warn('Gallery photo cleanup failed', { publicId }); }
+}
+
+export async function editPhoto(db, id, metadata, file) {
+  if (!(file instanceof File) || !file.size) {
+    const { error } = await db.from('portfolio_photos').update(metadata).eq('id', id).select('id').single();
+    if (error) throw error;
+    return;
+  }
+  const config = mediaConfig();
+  const previous = await currentPhotoAsset(db, id);
+  if (previous.public_id && previous.cloud_name !== config.cloud_name) throw new InputError('This photograph belongs to another media account.');
+  const asset = await uploadPhotoAsset(config, file, 'portfolio/' + randomUUID());
+  const update = db.from('portfolio_photos').update({ ...metadata, ...asset }).eq('id', id);
+  const { data, error } = await matchPhotoAsset(update, previous.public_id).select('id').maybeSingle();
+  if (error || !data) {
+    if (!error || error.code) await cleanUpPhotoAsset(config, asset.public_id);
+    throw error || new InputError('This photograph changed while you were editing it. Refresh and try again.');
+  }
+  if (previous.public_id) await cleanUpPhotoAsset(config, previous.public_id);
+}
+
+export async function removePhoto(db, id) {
+  const previous = await currentPhotoAsset(db, id);
+  if (previous.public_id) {
+    const config = mediaConfig();
+    if (previous.cloud_name !== config.cloud_name) throw new InputError('This photograph belongs to another media account.');
+    await destroyPhotoAsset(config, previous.public_id);
+  }
+  const removal = db.from('portfolio_photos').delete().eq('id', id);
+  const { data, error } = await matchPhotoAsset(removal, previous.public_id).select('id').maybeSingle();
+  if (error) throw error;
+  if (!data) throw new InputError('This photograph changed before it could be removed. Refresh and try again.');
 }

@@ -1,14 +1,16 @@
 ---
 export const prerender = false;
+import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import { cloudImage, env, renderMarkdown } from '../lib/content.js';
 import { adminSections, changePostVisibility, featureRepository, parsePost, photoFields, recordId, savePost, saveProjectSettings, updateInbox } from '../lib/admin.js';
 import { projectDisplay } from '../lib/work.js';
+import { presetImages } from '../lib/photos.js';
 import { listRepositories } from '../lib/github.js';
 import AdminPostEditor from '../components/AdminPostEditor.astro';
 import AdminPhotoFields from '../components/AdminPhotoFields.astro';
 import '../admin.css';
-import { authClient, ownerSession, sameOrigin, field, InputError, publishPhoto, removePhoto } from '../lib/server.js';
+import { authClient, ownerSession, sameOrigin, field, InputError, editPhoto, publishPhoto, removePhoto } from '../lib/server.js';
 
 Astro.response.headers.set('Cache-Control', 'private, no-store');
 Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
@@ -32,6 +34,7 @@ let originalSlug = '';
 let repositories = [];
 let hasNext = false;
 let githubUnavailable = false;
+let editedPhotoId;
 const repoPage = Math.max(1, Math.min(100, Number.parseInt(params.get('page'), 10) || 1));
 const redirectSaved = (target, saved) => Astro.redirect('/admin?section=' + target + '&saved=' + saved, 303);
 
@@ -98,8 +101,8 @@ if (Astro.request.method === 'POST') {
       await publishPhoto(db, form, photoFields(form));
       return redirectSaved('photos', 'yes');
     } else if (action === 'edit-photo') {
-      const saved = await db.from('portfolio_photos').update(photoFields(form)).eq('id', recordId(form)).select('id').single();
-      if (saved.error) throw saved.error;
+      editedPhotoId = recordId(form);
+      await editPhoto(db, editedPhotoId, photoFields(form), form.get('photo'));
       return redirectSaved('photos', 'yes');
     } else if (action === 'remove-photo') {
       if (form.get('confirm') !== 'yes') throw new InputError('Confirm which photograph you want to remove.');
@@ -149,7 +152,7 @@ if (owner.verified) {
     result = await query;
     items = (result.data || []).filter(item => !search || (item.title + ' ' + item.slug).toLowerCase().includes(search.toLowerCase()));
   } else if (section === 'photos') {
-    result = await db.from('portfolio_photos').select('id,title,alt,category,caption,display_order,cloud_name,public_id,version').order('display_order').order('created_at', { ascending: false });
+    result = await db.from('portfolio_photos').select('id,title,alt,category,caption,display_order,bundled_key,cloud_name,public_id,version').order('display_order').order('created_at', { ascending: false });
     items = result.data || [];
   } else if (section === 'inbox') {
     let query = db.from('portfolio_messages').select('id,name,email,message,read_at,created_at').order('created_at', { ascending: false }).limit(100);
@@ -237,23 +240,31 @@ const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', 
           </>}
           {section === 'photos' && <>
             <h2>Photography</h2>
-            {canUpload ? <details open={Astro.request.method === 'POST' && Astro.response.status >= 400}><summary>Upload photograph</summary><form method="post" enctype="multipart/form-data" data-photo-upload>
+            {canUpload ? <details open={Astro.request.method === 'POST' && Astro.response.status >= 400 && !editedPhotoId}><summary>Upload photograph</summary><form method="post" enctype="multipart/form-data" data-photo-upload>
               <input type="hidden" name="action" value="publish-photo" /><AdminPhotoFields />
               <label>Photograph · JPEG, PNG, or WebP<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
               <p role="status" data-upload-status hidden></p>
               <button class="button">Upload and publish</button>
-            </form></details> : <p class="form-status">Cloudinary credentials are required to upload or remove photographs.</p>}
+            </form></details> : <p class="form-status">Cloudinary credentials are required to upload, replace, or remove hosted images.</p>}
             <p class="admin-empty">Lower display numbers appear first.</p>
-            {items.length ? items.map(photo => <details><summary>{photo.title} · {photo.category}</summary>
-              {cloudImage(photo, 360) && <img src={cloudImage(photo, 360)} alt={photo.alt} width="240" loading="lazy" />}
-              <form method="post"><input type="hidden" name="id" value={photo.id} /><AdminPhotoFields {photo} />
-                <button class="button" name="action" value="edit-photo">Save details</button>
+            {items.length ? items.map(photo => {
+              const preset = photo.public_id ? undefined : presetImages.get(photo.bundled_key);
+              const thumbnail = preset ? '' : cloudImage(photo, 360);
+              return <details open={editedPhotoId === photo.id}><summary>{photo.title} · {photo.category}</summary>
+              {preset ? <Image src={preset} alt={photo.alt} width={240} format="webp" /> :
+                thumbnail && <img src={thumbnail} alt={photo.alt} width="240" loading="lazy" />}
+              <form method="post" enctype="multipart/form-data" data-photo-upload={canUpload ? '' : undefined}>
+                <input type="hidden" name="id" value={photo.id} /><input type="hidden" name="action" value="edit-photo" /><AdminPhotoFields {photo} />
+                {canUpload && <label>Replace image · JPEG, PNG, or WebP<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" /></label>}
+                <p role="status" data-upload-status hidden></p>
+                <button class="button">Save changes</button>
               </form>
-              {canUpload && <form method="post"><input type="hidden" name="id" value={photo.id} />
+              {(canUpload || !photo.public_id) && <form method="post"><input type="hidden" name="id" value={photo.id} />
                 <label><span><input name="confirm" type="checkbox" value="yes" required /> Confirm removal</span></label>
                 <button class="button secondary" name="action" value="remove-photo">Remove from the gallery</button>
               </form>}
-            </details>) : <p class="admin-empty">No uploaded photographs yet.</p>}
+            </details>;
+            }) : <p class="admin-empty">No photographs in the gallery.</p>}
           </>}
           {section === 'projects' && <>
             <h2>Projects</h2><p class="admin-empty">Featured projects appear on the homepage and Projects page in display order.</p>
@@ -305,15 +316,15 @@ const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', 
   </div>
 </Base>
 <script>
-  const form = document.querySelector<HTMLFormElement>('[data-photo-upload]');
-  const input = form?.querySelector<HTMLInputElement>('input[type=file]');
-  const button = form?.querySelector<HTMLButtonElement>('button');
-  const status = form?.querySelector<HTMLElement>('[data-upload-status]');
-  if (form && input && button && status) {
+  for (const form of document.querySelectorAll<HTMLFormElement>('[data-photo-upload]')) {
+    const input = form.querySelector<HTMLInputElement>('input[type=file]');
+    const button = form.querySelector<HTMLButtonElement>('button');
+    const status = form.querySelector<HTMLElement>('[data-upload-status]');
+    if (!input || !button || !status) continue;
     form.addEventListener('submit', async event => {
-      event.preventDefault();
       const file = input.files?.[0];
       if (!file) return;
+      event.preventDefault();
       button.disabled = true;
       status.hidden = false;
       status.textContent = 'Preparing photograph…';

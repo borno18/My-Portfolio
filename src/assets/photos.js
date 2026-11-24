@@ -36,30 +36,35 @@ import img5 from './img_6957.jpg';
 export const photos = [
     {
         src:      img1,
+        key:      'durga-puja-sylhet',
         title:    'Durga Puja Sylhet',
         category: 'Festival',
         location: 'Sylhet, Bangladesh',
     },
     {
         src:      img2,
+        key:      'devi-durga',
         title:    'Devi Durga',
         category: 'Festival',
         location: 'Sylhet, Bangladesh',
     },
     {
         src:      img3,
+        key:      'iict-sust',
         title:    'IICT SUST',
         category: 'Architecture',
         location: 'SUST, Sylhet',
     },
     {
         src:      img4,
+        key:      'home-kitchen',
         title:    'Home Kitchen',
         category: 'Food',
         location: 'Home',
     },
     {
         src:      img5,
+        key:      'a-dream-afternoon',
         title:    'A Dream Afternoon',
         category: 'Street',
         location: 'Sylhet',

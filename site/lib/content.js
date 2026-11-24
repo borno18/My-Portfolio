@@ -83,9 +83,9 @@ export async function getProjectSettings() {
 
 export async function getPublishedPhotos() {
   const db = publicDatabase();
-  if (!db) return [];
+  if (!db) return null;
   const { data, error } = await db.from('portfolio_photos')
-    .select('id,title,category,caption,alt,public_id,version,cloud_name,width,height').order('display_order').order('created_at', { ascending: false });
+    .select('bundled_key,title,category,caption,alt,public_id,version,cloud_name,width,height').order('display_order').order('created_at', { ascending: false });
   if (error) throw new Error('Could not build the published gallery from Supabase');
   return data;
 }

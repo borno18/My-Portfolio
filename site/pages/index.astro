@@ -7,11 +7,12 @@ import ProjectList from '../components/ProjectList.astro';
 import ArticleTeaser from '../components/ArticleTeaser.astro';
 import portrait from '../assets/joydip-portrait.webp';
 import { projectDisplay } from '../lib/work.js';
-import { featuredPhoto } from '../lib/photos.js';
-import { getPosts, getProjectSettings } from '../lib/content.js';
+import { galleryPhotos } from '../lib/photos.js';
+import { cloudImage, getPosts, getProjectSettings } from '../lib/content.js';
 
 Astro.response.headers.set('Cache-Control', 'no-store');
-const [articles, settings] = await Promise.all([getPosts(), getProjectSettings()]);
+const [articles, settings, photos] = await Promise.all([getPosts(), getProjectSettings(), galleryPhotos()]);
+const featuredPhoto = photos.find(photo => photo.bundled_key === 'a-dream-afternoon') ?? photos[0];
 const posts = articles.slice(0, 2);
 const featuredProjects = projectDisplay(settings).filter(project => project.featured);
 const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software Engineering Student', url: Astro.site.href, affiliation: { '@type': 'CollegeOrUniversity', name: 'Shahjalal University of Science and Technology' }, sameAs: ['https://github.com/borno18', 'https://www.linkedin.com/in/joydip-majumdar/'] };
@@ -42,8 +43,12 @@ const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software
   </section>
 
   <section class="photo-band" id="photography">
-    <div class="wrap photo-feature">
-      <figure><Image src={featuredPhoto.src} alt="A balcony and plants in the late afternoon sun in Sylhet" width={1200} widths={[480, 800, 1200]} sizes="(max-width: 680px) 100vw, 48vw" format="webp" /><figcaption>A Dream Afternoon · Sylhet</figcaption></figure>
+    <div class:list={['wrap', { 'photo-feature': featuredPhoto }]}>
+      {featuredPhoto && <figure>
+        {featuredPhoto.src ? <Image src={featuredPhoto.src} alt={featuredPhoto.alt} width={1200} widths={[480, 800, 1200]} sizes="(max-width: 680px) 100vw, 48vw" format="webp" /> :
+          <img src={cloudImage(featuredPhoto, 1200)} srcset={[480, 800, 1200].map(width => cloudImage(featuredPhoto, width) + ' ' + width + 'w').join(', ')} sizes="(max-width: 680px) 100vw, 48vw" width={featuredPhoto.width} height={featuredPhoto.height} alt={featuredPhoto.alt} loading="lazy" decoding="async" />}
+        <figcaption>{featuredPhoto.title}{featuredPhoto.bundled_key && featuredPhoto.caption && ' · ' + featuredPhoto.caption}</figcaption>
+      </figure>}
       <div><h2>Photography</h2><p>Street scenes, architecture, and festivals from Sylhet, photographed on Fujifilm.</p><Link class="button" href="/photos">Browse photographs</Link></div>
     </div>
   </section>

@@ -83,6 +83,20 @@ try {
   assert.equal(ranking[1].repo, 'https://github.com/borno18/Project-One');
   await assert.rejects(() => db.query("update portfolio_project_settings set featured = false"), /permission denied/i);
 
+  const preset = "where bundled_key = 'a-dream-afternoon'";
+  assert.equal((await db.query("select count(*)::int as total from portfolio_photos")).rows[0].total, 5);
+  assert.equal((await db.query("select title from portfolio_photos " + preset)).rows[0].title, 'A Dream Afternoon');
+  await assert.rejects(() => db.query("delete from portfolio_photos " + preset), /permission denied/i);
+  await db.exec("set role authenticated; set request.jwt.claims = '{\"aal\":\"aal1\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
+  assert.equal((await db.query("update portfolio_photos set title = 'Denied' " + preset + " returning id")).rows.length, 0);
+  await db.exec("set request.jwt.claims = '{\"aal\":\"aal2\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
+  const assetId = 'portfolio/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
+  assert.equal((await db.query("update portfolio_photos set title = 'Replaced', public_id = $1, cloud_name = 'example', version = 1, width = 32, height = 32 " + preset + " returning id", [assetId])).rows.length, 1);
+  await db.exec('set role anon');
+  assert.equal(cloudImage((await db.query("select * from portfolio_photos " + preset)).rows[0], 960), 'https://res.cloudinary.com/example/image/upload/f_auto,q_auto,c_limit,w_960/v1/' + assetId + '.jpg');
+  await db.exec("set role authenticated; delete from portfolio_photos " + preset + "; reset role; set role anon");
+  assert.equal((await db.query("select title from portfolio_photos " + preset)).rows.length, 0);
+
   const unsafe = renderMarkdown('[Link](javascript:alert(1)) <img src="//evil.example/x" onerror="alert(1)"><script>alert(1)</script>');
   assert.doesNotMatch(unsafe, /javascript:|onerror|evil.example|<script/);
   assert.match(renderMarkdown('[Case study](/work/demo)'), /href="\/work\/demo"/);
