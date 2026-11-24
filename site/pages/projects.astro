@@ -13,7 +13,7 @@ const projects = projectDisplay(await getProjectSettings()).filter(project => pr
   <section class="wrap page-intro">
     <h1>Projects</h1>
     <p>Selected web and mobile applications.</p>
-    <Link href="https://github.com/borno18">GitHub profile</Link>
+    <div class="actions"><Link href="https://github.com/borno18">GitHub profile</Link></div>
   </section>
-  <div class="wrap band"><ProjectList {projects} heading="h2" /></div>
+  <div class="wrap projects-index"><ProjectList {projects} heading="h2" /></div>
 </Base>

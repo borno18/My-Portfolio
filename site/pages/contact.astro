@@ -50,7 +50,7 @@ if (Astro.request.method === 'POST') {
   <section class="wrap page-intro contact-layout">
     <div class="contact-intro">
       <h1>Contact</h1>
-      <p>Tell me what you’re working on. I’m happy to talk about software projects, roles, and photography.</p>
+      <p>Get in touch about software projects, roles, or photography.</p>
       <div class="contact-method">
         <span class="meta">Email</span>
         <Link href={'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(emailAddress)}>{emailAddress}</Link>
@@ -61,7 +61,7 @@ if (Astro.request.method === 'POST') {
     </div>
     <div class="contact-panel">
       <h2>Write a message</h2>
-      <p class="contact-hint">{ready ? 'Your message goes to my portfolio inbox. I’ll use your email to reply.' : 'The message form is temporarily unavailable. You can reach me by email.'}</p>
+      <p class="contact-hint">{ready ? 'Leave your email so I can reply.' : 'The message form is temporarily unavailable. You can reach me by email.'}</p>
       {sent && <p class="form-status" role="status">Your message was received.</p>}
       {notice && <p class="form-status" role="alert">{notice}</p>}
       <form method="post" data-contact-form>

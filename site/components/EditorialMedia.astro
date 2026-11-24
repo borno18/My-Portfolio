@@ -4,6 +4,4 @@ const { cover, photo, large = false } = Astro.props;
 const slugs = { sports: 'swe-sports-week', attendance: 'attendance-app', pookie: 'pookie-prep' };
 ---
 {photo ? <img src={photo.src} alt={photo.alt} loading={large ? 'eager' : 'lazy'} decoding="async" /> :
-  cover ? <ProjectMedia project={{ slug: slugs[cover] }} large={large} /> : (
-  <div class="editorial-type" aria-hidden="true"><span>Engineering</span><i></i><span>Blog</span></div>
-)}
+  cover && <ProjectMedia project={{ slug: slugs[cover] }} large={large} />}

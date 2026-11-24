@@ -19,7 +19,7 @@ const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software
 <Base description="Joydip Majumdar is a software engineering student at SUST in Sylhet, Bangladesh. Explore his projects, engineering blog, and Fujifilm photography." schema={{ '@context': 'https://schema.org', '@type': 'ProfilePage', mainEntity: person }}>
   <section class="hero wrap" id="about" aria-labelledby="intro">
     <div class="hero-copy">
-      <h1 id="intro">Hi, I’m Joydip Majumdar.</h1>
+      <h1 id="intro">Joydip Majumdar</h1>
       <p class="role">Software engineering student at SUST</p>
       <p class="intro">I build web and mobile apps, from offline attendance tools to campus tournament software. Away from my desk, I photograph everyday life in Sylhet.</p>
       <div class="actions"><Link class="button" href="#projects">View projects</Link><Link class="button secondary" href="https://www.linkedin.com/in/joydip-majumdar/">LinkedIn</Link></div>
@@ -31,13 +31,13 @@ const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software
 
   <section class="project-section" id="projects">
     <div class="wrap band">
-      <div class="section-head"><h2>Projects</h2><Link href="/projects">View projects</Link></div>
+      <div class="section-head"><h2>Projects</h2><Link href="/projects">All projects</Link></div>
       <ProjectList projects={featuredProjects} />
     </div>
   </section>
 
   <section class="band wrap news-section" id="blog">
-    <div class="section-head newspaper-head"><div><h2>Blog</h2><p>Notes on building software.</p></div><Link href="/blog">View all articles</Link></div>
+    <div class="section-head newspaper-head"><h2>Blog</h2><Link href="/blog">View all articles</Link></div>
     <div class="newspaper-grid">{posts.map(post => <ArticleTeaser post={post} />)}</div>
   </section>
 

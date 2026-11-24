@@ -23,8 +23,8 @@ const categories = [...new Set(photos.map(photo => photo.category))];
           <Link href={photo.large} describeNewTab={false} data-photo data-title={photo.title} data-alt={photo.alt || photo.title} data-caption={photo.caption || photo.location || ''}>
             {photo.src ? <Image src={photo.src} alt={photo.title} width={900} widths={[360, 600, 900]} sizes="(max-width: 860px) 48vw, 31vw" format="webp" /> :
               <img src={photo.thumb} srcset={[360, 600, 960].map(width => cloudImage(photo, width) + ' ' + width + 'w').join(', ')} sizes="(max-width: 860px) 48vw, 31vw" width={photo.width} height={photo.height} loading="lazy" decoding="async" alt={photo.alt} />}
-            <figcaption><strong>{photo.title}</strong><small>{photo.category}{photo.location && ' · ' + photo.location}</small></figcaption>
           </Link>
+          <figcaption><strong>{photo.title}</strong><small>{photo.category}{photo.location && ' · ' + photo.location}</small></figcaption>
         </figure>
       ))}
     </div>
@@ -38,7 +38,7 @@ const categories = [...new Set(photos.map(photo => photo.category))];
 <style>
   .filters{gap:.5rem;margin-bottom:1.5rem}
   .filters[hidden], .gallery figure[hidden]{display:none}
-  .filters button[aria-pressed='true']{background:var(--ink);color:var(--cream)}
+  .filters button[aria-pressed='true']{background:var(--action);border-color:var(--action);color:var(--action-text)}
   dialog form{display:contents}
 </style>
 <script>
@@ -47,7 +47,6 @@ const categories = [...new Set(photos.map(photo => photo.category))];
   const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-filter]')];
   const links = [...document.querySelectorAll<HTMLAnchorElement>('a[data-photo]')];
   const image = new Image(1200, 800);
-  dialog?.querySelector('[data-lightbox-image]')?.append(image);
   let active = 0;
   let trigger: HTMLAnchorElement;
   const available = () => links.filter(link => !link.closest('figure').hidden);
@@ -57,6 +56,7 @@ const categories = [...new Set(photos.map(photo => photo.category))];
     const photo = visible[active];
     image.src = photo.href;
     image.alt = photo.dataset.alt;
+    if (!image.isConnected) dialog.querySelector('[data-lightbox-image]').append(image);
     dialog.querySelector('#photo-title').textContent = photo.dataset.title;
     dialog.querySelector('[data-caption]').textContent = photo.dataset.caption;
   }

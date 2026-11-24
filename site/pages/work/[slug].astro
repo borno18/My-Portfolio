@@ -8,13 +8,13 @@ const { project } = Astro.props;
 ---
 <Base title={project.name} description={project.summary}>
   <section class="wrap page-intro">
-    <Link href="/#projects">Projects</Link>
+    <Link class="article-section-link" href="/projects">Projects</Link>
     <h1>{project.name}</h1>
     <p>{project.summary}</p>
     <div class="actions"><Link class="button" href={project.repo}>Source code</Link>{project.live && <Link href={project.live}>Live site</Link>}{project.release && <Link href={project.release}>Android release</Link>}</div>
   </section>
   <div class="wrap case-media"><ProjectMedia project={project} large /></div>
-  <article class="reading article">
+  <article class="reading article case-study">
     <p class="meta">{project.stack}</p>
     {project.sections.map(([title, body]) => <section><h2>{title}</h2><p>{body}</p></section>)}
   </article>

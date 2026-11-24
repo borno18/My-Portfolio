@@ -9,7 +9,7 @@ const posts = await getPosts();
 <Base title="Blog" description="Project notes and articles by Joydip Majumdar about web applications, mobile development, and software engineering.">
   <section class="wrap page-intro blog-masthead">
     <h1>Blog</h1>
-    <p>Engineering notes on the software I build and the decisions behind it.</p>
+    <p>Notes on building software and studying at university.</p>
   </section>
   <div class="wrap newspaper-grid blog-index">
     {posts.map(post => <ArticleTeaser post={post} heading="h2" />)}

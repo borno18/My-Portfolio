@@ -6,11 +6,11 @@ const { post, heading = "h3" } = Astro.props;
 const Heading = heading;
 const detail = editorialDetails(post);
 ---
-<article class="newspaper-story">
-  <div class="story-image">
+<article class:list={['newspaper-story', { 'story-without-cover': !detail.cover && !detail.photo }]}>
+  {(detail.cover || detail.photo) && <div class="story-image">
     <EditorialMedia cover={detail.cover} photo={detail.photo} />
-  </div>
-  <p class="story-meta">{detail.category}<span aria-hidden="true">·</span>{detail.minutes}</p>
+  </div>}
+  <p class="story-meta">{post.isProjectNote && <>{detail.category}<span aria-hidden="true">·</span></>}{detail.minutes}</p>
   <Heading><Link href={'/blog/' + post.slug}>{post.title}</Link></Heading>
   <p class="story-deck">{post.description}</p>
   {detail.date && <time class="story-date" datetime={post.published_at}>{detail.date}</time>}
