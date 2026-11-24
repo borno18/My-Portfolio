@@ -18,7 +18,14 @@ const Heading = heading;
         <Link class="button secondary" href={project.sections ? '/work/' + project.slug : project.repo}>
           {project.sections ? 'Read case study' : 'View repository'}
         </Link>
+        {!project.sections && project.evidence && <ul class="project-evidence">
+          {project.evidence.map(([label, file, description]) => <li><Link href={project.repo + '/blob/HEAD/' + file}>{label}</Link> — {description}</li>)}
+        </ul>}
       </div>
     </article>
   ))}
 </div>
+<style>
+  .project-evidence { margin: 0; padding-inline-start: 1.25rem; color: var(--muted); }
+  .project-evidence li + li { margin-top: .35rem; }
+</style>

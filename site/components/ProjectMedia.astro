@@ -7,7 +7,10 @@ import attendanceIcon from '../assets/attendance-icon.png';
 const { project, large = false } = Astro.props;
 ---
 {project.slug === 'swe-sports-week' ? (
-  <Image src={sports} alt="SWE Sports Week homepage showing the list of sports" width={large ? 1200 : 800} format="webp" loading={large ? 'eager' : 'lazy'} />
+  <Image src={sports} alt="SWE Sports Week homepage showing the list of sports" width={large ? 1200 : 800}
+    widths={large ? [480, 800, 1200] : [360, 560, 800]}
+    sizes={large ? '(max-width: 680px) 92vw, (max-width: 1200px) 92vw, 1170px' : '(max-width: 680px) 92vw, (max-width: 1200px) 46vw, 585px'}
+    format="webp" loading={large ? 'eager' : 'lazy'} />
 ) : project.slug === 'attendance-app' ? (
   <div class="attendance-media" role="img" aria-label="Attendance workflow diagram. Import a class roster, start a nearby session, then export attendance.">
     <div class="attendance-mark"><Image src={attendanceIcon} alt="" width={64} height={64} /><span>Smart Proximity<br />Attendance</span></div>

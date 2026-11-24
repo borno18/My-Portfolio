@@ -8,6 +8,11 @@ export const projects = [
     summary: 'An offline Flutter app for running class attendance over nearby device connections.',
     stack: 'Flutter · Dart · SQLite · Android Nearby Connections',
     repo: 'https://github.com/borno18/Android-Project',
+    evidence: [
+      ['Roster import service', 'lib/services/student_import_service.dart', 'turns spreadsheet rows into roster records.'],
+      ['Nearby session service', 'lib/services/proximity_service.dart', 'handles device communication during an attendance session.'],
+      ['Report screen', 'lib/screens/report_screen.dart', 'presents session records and supports sharing a CSV.'],
+    ],
     sections: [
       ['The problem', 'Instructors need a quick, reliable way to collect attendance when classroom Wi-Fi is unreliable. The workflow also needs to accommodate large rosters and give instructors a record to review after class.'],
       ['The workflow', 'An instructor imports a class roster, starts a nearby session, and monitors check-ins. The app stores session history locally and exports attendance reports as CSV.'],
@@ -22,6 +27,9 @@ export const projects = [
     stack: 'Next.js · TypeScript · Turso',
     repo: 'https://github.com/borno18/swe-sports-week',
     live: 'https://swe-sports-week.vercel.app/',
+    evidence: [
+      ['Architecture notes', 'docs/architecture.md', 'describe the tournament data model and the boundary between public pages and organizer tools.'],
+    ],
     sections: [
       ['The problem', 'Running several sports at once means keeping fixtures, venues, and results in sync for organizers and participants. A correction should reach the public bracket without asking organizers to rebuild it.'],
       ['The workflow', 'Organizers publish a bracket, then record match results. Winners advance automatically. If a result is corrected, dependent matches are cleared and unrelated results are preserved.'],
@@ -50,6 +58,10 @@ export const projects = [
     summary: 'A FastAPI service that checks transaction evidence and helps support agents route tickets.',
     stack: 'FastAPI · Python · Pydantic',
     repo: 'https://github.com/borno18/CSE_FEST_Preli',
+    evidence: [
+      ['Transaction matcher', 'app/matcher.py', 'checks a complaint against structured transaction evidence.'],
+      ['Pydantic schemas', 'app/schemas.py', 'define the ticket request and structured verdict.'],
+    ],
     sections: [
       ['The problem', 'During a high-volume campaign, support agents need a consistent way to compare a customer’s report with recent transaction records.'],
       ['The workflow', 'The service validates a support ticket, compares it with the supplied ledger, and returns a typed verdict, suggested department, and draft reply for a human agent.'],
@@ -57,6 +69,18 @@ export const projects = [
     ]
   }
 ];
+
+const importedProof = {
+  'flutter-class-attendance-app': {
+    name: 'Class Attendance App',
+    summary: 'A Flutter roll-call app that records present and absent students and updates class totals.',
+    stack: 'Flutter · Dart',
+    evidence: [
+      ['Roll-call screen', 'lib/calling_screen.dart', 'updates each student’s attendance as the teacher works through the roster.'],
+      ['Analytics screen', 'lib/analytics_screen.dart', 'groups the same roster into present, absent, and unmarked students.'],
+    ],
+  },
+};
 
 export function projectDisplay(settings = []) {
   const overrides = new Map(settings.map(setting => [setting.slug, setting]));
@@ -79,6 +103,7 @@ export function projectDisplay(settings = []) {
       repo: 'https://github.com/' + githubOwner + '/' + encodeURIComponent(setting.repository.name),
       featured: setting.featured,
       display_order: setting.display_order,
+      ...(Object.hasOwn(importedProof, setting.repository.name) ? importedProof[setting.repository.name] : {}),
     }));
   return [...curated, ...imported].sort((a, b) => a.display_order - b.display_order || a.slug.localeCompare(b.slug));
 }

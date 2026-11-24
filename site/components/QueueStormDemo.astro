@@ -1,0 +1,54 @@
+---
+const scenarios = [
+  { value: 'completed', label: 'Ledger shows completed', status: 'Completed', verdict: 'Inconsistent', next: 'Ask the agent to verify the payment details before responding.' },
+  { value: 'failed', label: 'Ledger shows failed', status: 'Failed', verdict: 'Consistent', next: 'Ask the agent to check whether the failed payment was reversed.' },
+  { value: 'unknown', label: 'No matching transaction', status: 'No match', verdict: 'Insufficient data', next: 'Ask the customer for a transaction reference so the agent can investigate.' },
+];
+---
+<section class="reading project-demo" aria-labelledby="queuestorm-demo-title">
+  <h2 id="queuestorm-demo-title">Try an evidence check</h2>
+  <p>This browser demo illustrates how a sample support ticket is compared with a synthetic ledger. It runs without the live API.</p>
+  <blockquote>“My ৳500 payment failed. The reference is DEMO-500.”</blockquote>
+  <fieldset data-queue-demo>
+    <legend>Choose the ledger evidence</legend>
+    <div class="demo-options">
+      {scenarios.map((scenario, index) => <label>
+        <input type="radio" name="ledger-evidence" value={scenario.value} checked={index === 0} />
+        {scenario.label}
+      </label>)}
+    </div>
+    <div aria-live="polite">
+      {scenarios.map((scenario, index) => (
+        <div class="demo-result" data-result={scenario.value} hidden={index > 0}>
+          <dl><div><dt>Ledger status</dt><dd>{scenario.status}</dd></div><div><dt>Evidence verdict</dt><dd>{scenario.verdict}</dd></div></dl>
+          <p>{scenario.next}</p>
+        </div>
+      ))}
+    </div>
+  </fieldset>
+</section>
+
+<style>
+  .project-demo { margin-block: 2rem; }
+  h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); }
+  p { margin-top: .75rem; color: var(--muted); }
+  blockquote { margin: 1rem 0; padding: .75rem 1rem; border-inline-start: 2px solid var(--control); font-family: var(--display); }
+  fieldset { min-width: 0; margin: 0; padding: 1rem; border: 1px solid var(--line); background: var(--paper); border-radius: 8px; }
+  legend { padding-inline: .25rem; font-weight: 600; }
+  .demo-options { display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+  label { display: flex; align-items: center; gap: .4rem; min-height: 44px; cursor: pointer; }
+  .demo-result { border-top: 1px solid var(--line); margin-top: .75rem; padding-top: .75rem; }
+  dl { display: flex; flex-wrap: wrap; gap: .75rem 2rem; margin: 0; }
+  dt { font-size: .875rem; color: var(--muted); }
+  dd { margin: 0; font-weight: 600; }
+</style>
+
+<script>
+  const demo = document.querySelector('[data-queue-demo]');
+  demo?.addEventListener('change', event => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    for (const result of demo.querySelectorAll<HTMLElement>('[data-result]')) {
+      result.hidden = result.dataset.result !== event.target.value;
+    }
+  });
+</script>

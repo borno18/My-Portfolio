@@ -1,0 +1,42 @@
+---
+import { Image, getImage } from 'astro:assets';
+import Link from './Link.astro';
+import MediaLightbox from './MediaLightbox.astro';
+import roster from '../assets/attendance/roster.webp';
+import session from '../assets/attendance/session.webp';
+import report from '../assets/attendance/report.webp';
+
+const images = await Promise.all([
+  { source: roster, title: 'Import the class roster', caption: 'Import student records from a spreadsheet into the class roster.' },
+  { source: session, title: 'Run a nearby session', caption: 'The instructor opens a session and watches nearby students check in.' },
+  { source: report, title: 'Review and export attendance', caption: 'Review the record on-device and export it as a CSV report.' },
+].map(async item => ({ ...item, large: (await getImage({ src: item.source, width: 1800, format: 'webp' })).src })));
+---
+<section class="wrap attendance-gallery" aria-labelledby="attendance-gallery-title" data-media-gallery>
+  <h2 id="attendance-gallery-title">Attendance workflow</h2>
+  <p>Illustrated walkthrough with sample data. Select an image to enlarge it.</p>
+  <div class="attendance-gallery-grid">
+    {images.map(({ source, title, caption, large }) => (
+      <figure>
+        <Link href={large} data-media-image data-title={title} data-caption={caption} aria-label={'Enlarge: ' + title}>
+          <Image src={source} width={720} widths={[360, 540, 720]} sizes="(max-width: 680px) 92vw, (max-width: 1200px) 30vw, 380px"
+            format="webp" alt="" loading="lazy" />
+        </Link>
+        <figcaption><strong>{title}</strong><span>{caption}</span></figcaption>
+      </figure>
+    ))}
+  </div>
+  <MediaLightbox id="attendance-image-title" />
+</section>
+
+<style>
+  .attendance-gallery { margin-bottom: 2rem; }
+  h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); }
+  p { margin: .5rem 0 1rem; color: var(--muted); }
+  .attendance-gallery-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+  a { display: block; }
+  img { width: 100%; border-radius: 6px; }
+  figcaption { padding-block: .5rem; }
+  figcaption span { display: block; color: var(--muted); font-size: .9375rem; }
+  @media (max-width: 680px) { .attendance-gallery-grid { grid-template-columns: 1fr; gap: 1rem; } }
+</style>

@@ -2,6 +2,8 @@
 import Base from '../../layouts/Base.astro';
 import Link from '../../components/Link.astro';
 import ProjectMedia from '../../components/ProjectMedia.astro';
+import AttendanceGallery from '../../components/AttendanceGallery.astro';
+import QueueStormDemo from '../../components/QueueStormDemo.astro';
 import { projects } from '../../lib/work.js';
 export function getStaticPaths() { return projects.map(project => ({ params: { slug: project.slug }, props: { project } })); }
 const { project } = Astro.props;
@@ -11,11 +13,22 @@ const { project } = Astro.props;
     <Link class="article-section-link" href="/projects">Projects</Link>
     <h1>{project.name}</h1>
     <p>{project.summary}</p>
-    <div class="actions"><Link class="button" href={project.repo}>Source code</Link>{project.live && <Link href={project.live}>Live site</Link>}{project.release && <Link href={project.release}>Android release</Link>}</div>
+    <div class="actions">
+      {project.live && <Link class="button" href={project.live}>Explore the live site</Link>}
+      <Link class:list={['button', { secondary: project.live }]} href={project.repo}>Source code</Link>
+      {project.release && <Link href={project.release}>Android release</Link>}
+    </div>
   </section>
-  <div class="wrap case-media"><ProjectMedia project={project} large /></div>
+  {project.slug === 'attendance-app' ? <AttendanceGallery /> :
+    <div class="wrap case-media"><ProjectMedia project={project} large /></div>}
+  {project.slug === 'queuestorm' && <QueueStormDemo />}
   <article class="reading article case-study">
     <p class="meta">{project.stack}</p>
     {project.sections.map(([title, body]) => <section><h2>{title}</h2><p>{body}</p></section>)}
+    {project.evidence && <section><h2>Explore the implementation</h2>
+      <ul>
+        {project.evidence.map(([label, file, description]) => <li><Link href={project.repo + '/blob/HEAD/' + file}>{label}</Link> — {description}</li>)}
+      </ul>
+    </section>}
   </article>
 </Base>

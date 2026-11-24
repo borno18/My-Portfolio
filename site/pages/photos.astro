@@ -3,6 +3,7 @@ export const prerender = false;
 import { Image, getImage } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import Link from '../components/Link.astro';
+import MediaLightbox from '../components/MediaLightbox.astro';
 import { localPhotos } from '../lib/photos.js';
 import { getPublishedPhotos, cloudImage } from '../lib/content.js';
 Astro.response.headers.set('Cache-Control', 'no-store');
@@ -13,14 +14,14 @@ const categories = [...new Set(photos.map(photo => photo.category))];
 ---
 <Base title="Photography" description="Fujifilm street, festival, and architectural photography from Sylhet, Bangladesh, by Joydip Majumdar.">
   <section class="wrap page-intro"><h1>Photography</h1><p>Street scenes, architecture, and festivals from Sylhet and everyday life.</p></section>
-  <div class="wrap">
+  <div class="wrap" data-media-gallery>
     <div class="actions filters" hidden aria-label="Filter photographs">
       {['All', ...categories].map((category, index) => <button class="button secondary" type="button" data-filter={category} aria-pressed={index === 0 ? 'true' : 'false'}>{category}</button>)}
     </div>
     <div class="gallery">
       {photos.map(photo => (
         <figure data-category={photo.category}>
-          <Link href={photo.large} describeNewTab={false} data-photo data-title={photo.title} data-alt={photo.alt || photo.title} data-caption={photo.caption || photo.location || ''}>
+          <Link href={photo.large} describeNewTab={false} data-media-image data-title={photo.title} data-alt={photo.alt || photo.title} data-caption={photo.caption || photo.location || ''}>
             {photo.src ? <Image src={photo.src} alt={photo.title} width={900} widths={[360, 600, 900]} sizes="(max-width: 860px) 48vw, 31vw" format="webp" /> :
               <img src={photo.thumb} srcset={[360, 600, 960].map(width => cloudImage(photo, width) + ' ' + width + 'w').join(', ')} sizes="(max-width: 860px) 48vw, 31vw" width={photo.width} height={photo.height} loading="lazy" decoding="async" alt={photo.alt} />}
           </Link>
@@ -28,60 +29,25 @@ const categories = [...new Set(photos.map(photo => photo.category))];
         </figure>
       ))}
     </div>
+    <MediaLightbox id="photo-title" />
   </div>
-  <dialog aria-labelledby="photo-title">
-    <div class="actions"><button class="button secondary" data-prev>Previous</button><button class="button secondary" data-next>Next</button><form method="dialog"><button class="button" autofocus>Close</button></form></div>
-    <div data-lightbox-image></div>
-    <p><strong id="photo-title"></strong> <span data-caption></span></p>
-  </dialog>
 </Base>
 <style>
   .filters{gap:.5rem;margin-bottom:1.5rem}
   .filters[hidden], .gallery figure[hidden]{display:none}
   .filters button[aria-pressed='true']{background:var(--action);border-color:var(--action);color:var(--action-text)}
-  dialog form{display:contents}
 </style>
 <script>
-  const dialog = document.querySelector('dialog');
   const filters = document.querySelector('.filters');
   const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-filter]')];
-  const links = [...document.querySelectorAll<HTMLAnchorElement>('a[data-photo]')];
-  const image = new Image(1200, 800);
-  let active = 0;
-  let trigger: HTMLAnchorElement;
-  const available = () => links.filter(link => !link.closest('figure').hidden);
-  function show(position: number) {
-    const visible = available();
-    active = (position + visible.length) % visible.length;
-    const photo = visible[active];
-    image.src = photo.href;
-    image.alt = photo.dataset.alt;
-    if (!image.isConnected) dialog.querySelector('[data-lightbox-image]').append(image);
-    dialog.querySelector('#photo-title').textContent = photo.dataset.title;
-    dialog.querySelector('[data-caption]').textContent = photo.dataset.caption;
-  }
-  if (dialog?.showModal) {
+  const photos = [...document.querySelectorAll<HTMLElement>('.gallery figure[data-category]')];
+  if (filters) {
     filters.removeAttribute('hidden');
     buttons.forEach(button => button.addEventListener('click', () => {
       buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
-      links.forEach(link => {
-        const figure = link.closest('figure');
+      photos.forEach(figure => {
         figure.hidden = button.dataset.filter !== 'All' && figure.dataset.category !== button.dataset.filter;
       });
     }));
-    links.forEach(link => link.addEventListener('click', event => {
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      event.preventDefault();
-      trigger = link;
-      show(available().indexOf(link));
-      dialog.showModal();
-    }));
-    dialog.querySelector('[data-prev]').addEventListener('click', () => show(active - 1));
-    dialog.querySelector('[data-next]').addEventListener('click', () => show(active + 1));
-    dialog.addEventListener('keydown', event => {
-      if (event.key === 'ArrowLeft') show(active - 1);
-      if (event.key === 'ArrowRight') show(active + 1);
-    });
-    dialog.addEventListener('close', () => trigger?.focus());
   }
 </script>
