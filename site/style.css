@@ -150,6 +150,7 @@ p { max-width: 66ch; }
 .article code { overflow-wrap: anywhere; }
 .related-articles { margin-block: 3.3rem 4rem; padding-block: 1rem; border-top: 3px double var(--control); display: grid; gap: .65rem; }
 .related-articles h2 { font-size: 1.75rem; }
+.feature-article:last-child { padding-bottom: 3rem; }
 
 .photo-band { background: var(--sage-surface); padding-block: clamp(2.7rem, 5.8vw, 4.75rem); }
 .photo-feature { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: clamp(1.35rem, 5vw, 4rem); }

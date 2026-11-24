@@ -34,8 +34,8 @@ const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 
     {(detail.cover || detail.photo) && <figure class="wrap article-cover"><EditorialMedia cover={detail.cover} photo={detail.photo} large /></figure>}
     <div class="reading article article-prose" set:html={renderMarkdown(post.body, Astro.site, Astro.url)} />
   </article>
-  <aside class="reading related-articles" aria-labelledby="read-next">
+  {related.length > 0 && <aside class="reading related-articles" aria-labelledby="read-next">
     <h2 id="read-next">Read next</h2>
     {related.map(item => <Link href={'/blog/' + item.slug}>{item.title}</Link>)}
-  </aside>
+  </aside>}
 </Base>
