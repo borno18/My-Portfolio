@@ -3,6 +3,7 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import Link from '../../components/Link.astro';
 import EditorialMedia from '../../components/EditorialMedia.astro';
+import ArticleShare from '../../components/ArticleShare.astro';
 import { editorialDetails } from '../../lib/editorial.js';
 import { getPosts, renderMarkdown } from '../../lib/content.js';
 
@@ -14,7 +15,8 @@ if (!post) {
 }
 const related = posts.filter(item => item.slug !== post.slug).slice(0, 2);
 const detail = editorialDetails(post);
-const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 'BlogPosting', headline: post.title, description: post.description, datePublished: post.published_at, url: new URL('/blog/' + post.slug, Astro.site).href, author: { '@type': 'Person', name: 'Joydip Majumdar', url: Astro.site.href } } : undefined;
+const articleUrl = new URL('/blog/' + post.slug, Astro.site).href;
+const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 'BlogPosting', headline: post.title, description: post.description, datePublished: post.published_at, url: articleUrl, author: { '@type': 'Person', name: 'Joydip Majumdar', url: Astro.site.href } } : undefined;
 ---
 <Base title={post.title} description={post.description} schema={schema}>
   <article class="feature-article">
@@ -27,6 +29,7 @@ const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 
         {detail.date && <time datetime={post.published_at}>{detail.date}</time>}
         <span>{detail.minutes}</span>
       </div>
+      <ArticleShare title={post.title} url={articleUrl} />
     </header>
     {detail.cover && <figure class="wrap article-cover"><EditorialMedia cover={detail.cover} large /></figure>}
     <div class="reading article article-prose" set:html={renderMarkdown(post.body, Astro.site, Astro.url)} />

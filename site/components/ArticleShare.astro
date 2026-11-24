@@ -1,0 +1,90 @@
+---
+import Link from './Link.astro';
+
+const { title, url } = Astro.props;
+const encodedUrl = encodeURIComponent(url);
+const encodedTitle = encodeURIComponent(title);
+const shareLinks = [
+  { label: 'Facebook', href: 'https://www.facebook.com/sharer/sharer.php?u=' + encodedUrl },
+  { label: 'WhatsApp', href: 'https://wa.me/?text=' + encodeURIComponent(title + '\n' + url) },
+  { label: 'Instagram', href: 'https://www.instagram.com/direct/inbox/', useDeviceShare: true },
+  { label: 'Telegram', href: 'https://t.me/share/url?url=' + encodedUrl + '&text=' + encodedTitle },
+  { label: 'Messenger', href: 'https://www.facebook.com/messages/', useDeviceShare: true },
+];
+---
+<section class="article-share" aria-label="Share this article" data-article-share data-share-title={title} data-share-url={url}>
+  <p class="article-share-label">Share this article</p>
+  <ul>
+    {shareLinks.map(({ label, href, useDeviceShare }) => (
+      <li><Link class="button secondary" href={href} data-device-share={useDeviceShare ? label : undefined}>{label}</Link></li>
+    ))}
+    <li><button class="button secondary" type="button" data-copy-share hidden>Copy link</button></li>
+  </ul>
+  <p class="article-share-status" role="status" data-share-status hidden></p>
+  <label class="article-share-url" data-manual-copy hidden>
+    Article link
+    <input type="url" value={url} readonly />
+  </label>
+</section>
+
+<style>
+  .article-share { margin-top: .85rem; }
+  .article-share-label { font-size: .9rem; font-weight: 600; margin-bottom: .5rem; }
+  ul { display: flex; flex-wrap: wrap; gap: .4rem; list-style: none; margin: 0; padding: 0; }
+  .article-share .button { min-height: 44px; padding: .4rem .65rem; font-size: .85rem; }
+  .article-share-status, .article-share-url { color: var(--muted); font-size: .85rem; margin-top: .45rem; }
+  .article-share-url { display: block; }
+  .article-share-url input { display: block; width: min(100%, 32rem); }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-article-share]').forEach(bar => {
+    const { shareTitle: title, shareUrl: url } = bar.dataset;
+    if (!url) return;
+    const status = bar.querySelector<HTMLElement>('[data-share-status]');
+    const manual = bar.querySelector<HTMLElement>('[data-manual-copy]');
+    const copyButton = bar.querySelector<HTMLButtonElement>('[data-copy-share]');
+    if (!status || !manual || !copyButton) return;
+
+    const showStatus = (message: string, manualCopy = false) => {
+      status.hidden = false;
+      status.textContent = message;
+      manual.hidden = !manualCopy;
+    };
+
+    const copyLink = async (platform?: string) => {
+      try {
+        await navigator.clipboard.writeText(url);
+        showStatus(platform ? 'Link copied. Paste it into a chat on ' + platform + '.' : 'Link copied.');
+      } catch {
+        showStatus('Copy the article link below.', true);
+        manual.querySelector('input')?.select();
+      }
+    };
+
+    copyButton.hidden = false;
+    copyButton.addEventListener('click', () => { void copyLink(); });
+    bar.querySelectorAll<HTMLAnchorElement>('[data-device-share]').forEach(link => {
+      const platform = link.dataset.deviceShare;
+      link.addEventListener('click', async event => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+        const shareData = { title, url };
+        if (!navigator.share || (navigator.canShare && !navigator.canShare(shareData))) {
+          void copyLink(platform);
+          return;
+        }
+        event.preventDefault();
+        showStatus('Choose ' + platform + ' in your share menu.');
+        try {
+          await navigator.share(shareData);
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            status.hidden = true;
+            return;
+          }
+          showStatus('Sharing is unavailable. Copy the article link below.', true);
+        }
+      });
+    });
+  });
+</script>
