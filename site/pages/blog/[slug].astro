@@ -18,7 +18,7 @@ const detail = editorialDetails(post);
 const articleUrl = new URL('/blog/' + post.slug, Astro.site).href;
 const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 'BlogPosting', headline: post.title, description: post.description, datePublished: post.published_at, url: articleUrl, author: { '@type': 'Person', name: 'Joydip Majumdar', url: Astro.site.href } } : undefined;
 ---
-<Base title={post.title} description={post.description} schema={schema}>
+<Base title={post.title} description={post.description} schema={schema} socialImage={detail.photo?.src}>
   <article class="feature-article">
     <header class="reading article-header">
       <Link class="article-section-link" href="/blog">Blog</Link>
@@ -31,7 +31,7 @@ const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 
       </div>
       <ArticleShare title={post.title} url={articleUrl} />
     </header>
-    {detail.cover && <figure class="wrap article-cover"><EditorialMedia cover={detail.cover} large /></figure>}
+    {(detail.cover || detail.photo) && <figure class="wrap article-cover"><EditorialMedia cover={detail.cover} photo={detail.photo} large /></figure>}
     <div class="reading article article-prose" set:html={renderMarkdown(post.body, Astro.site, Astro.url)} />
   </article>
   <aside class="reading related-articles" aria-labelledby="read-next">

@@ -8,7 +8,7 @@ const detail = editorialDetails(post);
 ---
 <article class="newspaper-story">
   <div class="story-image">
-    <EditorialMedia cover={detail.cover} />
+    <EditorialMedia cover={detail.cover} photo={detail.photo} />
   </div>
   <p class="story-meta">{detail.category}<span aria-hidden="true">·</span>{detail.minutes}</p>
   <Heading><Link href={'/blog/' + post.slug}>{post.title}</Link></Heading>

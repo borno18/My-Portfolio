@@ -47,6 +47,33 @@ export function field(form, name, max, optional = false) {
 
 export class InputError extends Error {}
 
+export async function uploadArticleCover(db, slug, file) {
+  if (file.size > 3500000) throw new InputError('Choose a cover under 3.5 MB.');
+  let bytes;
+  try {
+    const image = sharp(Buffer.from(await file.arrayBuffer()), { limitInputPixels: 48000000 });
+    const { format, pages } = await image.metadata();
+    if (!['jpeg', 'png', 'webp'].includes(format) || Number(pages) > 1) throw new Error();
+    bytes = await image.rotate().resize(1600, 1200, { fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 86 }).toBuffer();
+  } catch {
+    throw new InputError('Choose a valid JPG, PNG or WebP cover under 48 megapixels.');
+  }
+  const path = slug + '/' + randomUUID() + '.jpg';
+  const { error } = await db.storage.from('article-covers').upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
+  if (error) throw error;
+  return path;
+}
+
+export async function removeArticleCover(db, path) {
+  if (!path) return;
+  try {
+    const { error } = await db.storage.from('article-covers').remove([path]);
+    if (error) console.warn('Article cover cleanup failed', { code: error.statusCode });
+  } catch {
+    console.warn('Article cover cleanup failed');
+  }
+}
+
 function mediaConfig() {
   const config = { cloud_name: env('CLOUDINARY_CLOUD_NAME'), api_key: env('CLOUDINARY_API_KEY'), api_secret: env('CLOUDINARY_API_SECRET') };
   if (!Object.values(config).every(Boolean)) throw new InputError('Photo storage needs to be configured.');

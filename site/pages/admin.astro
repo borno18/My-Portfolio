@@ -82,13 +82,13 @@ if (Astro.request.method === 'POST') {
     } else if (['preview-post', 'save-draft', 'publish-post'].includes(action)) {
       originalSlug = field(form, 'original_slug', 100, true);
       const draft = parsePost(form, action === 'preview-post');
-      const previous = originalSlug ? await db.from('portfolio_posts').select('status').eq('slug', originalSlug).single() : null;
+      const previous = originalSlug ? await db.from('portfolio_posts').select('status,cover_path,cover_alt').eq('slug', originalSlug).single() : null;
       if (previous?.error) throw previous.error;
-      post = { ...draft, status: previous?.data.status || 'draft' };
+      post = { ...previous?.data, ...draft, status: previous?.data.status || 'draft' };
       if (action === 'preview-post') {
         preview = renderMarkdown(post.body, Astro.site, Astro.url);
       } else {
-        const changedPublic = await savePost(db, post, originalSlug, action === 'publish-post');
+        const changedPublic = await savePost(db, draft, originalSlug, action === 'publish-post', form);
         return redirectSaved('blog', changedPublic ? 'yes' : 'draft');
       }
     } else if (action === 'unpublish-post' || action === 'delete-post') {
@@ -136,7 +136,7 @@ if (owner.verified) {
     if (!post) {
       originalSlug = editing === '_new' ? '' : editing;
       if (originalSlug) {
-        result = await db.from('portfolio_posts').select('slug,title,description,body,status').eq('slug', originalSlug).maybeSingle();
+        result = await db.from('portfolio_posts').select('slug,title,description,body,status,cover_path,cover_alt').eq('slug', originalSlug).maybeSingle();
         post = result.data;
         if (!post && !result.error) Astro.response.status = 404;
       } else {

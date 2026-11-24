@@ -14,6 +14,13 @@ try {
     create function auth.jwt() returns jsonb language sql
       as 'select coalesce(nullif(current_setting(''request.jwt.claims'', true), ''''), ''{}'')::jsonb';
     grant usage on schema auth to anon, authenticated;
+    create schema storage;
+    create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
+    create table storage.objects (bucket_id text, name text);
+    alter table storage.objects enable row level security;
+    grant usage on schema storage to anon, authenticated;
+    grant select on storage.objects to anon, authenticated;
+    grant insert, delete on storage.objects to authenticated;
   `);
   for (const file of (await readdir('supabase/migrations')).filter(name => name.endsWith('.sql')).sort()) {
     await db.exec(await readFile('supabase/migrations/' + file, 'utf8'));
@@ -40,6 +47,14 @@ try {
   await db.exec("set request.jwt.claims = '{\"aal\":\"aal2\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
   assert.deepEqual(await posts(), ['draft', 'public']);
   await db.query("insert into portfolio_posts values ('another','Draft','Hidden','Body','draft',null)");
+  const coverId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jpg';
+  await db.query("insert into storage.objects values ('article-covers', $1),('article-covers', $2)", ['draft/' + coverId, 'public/' + coverId]);
+  await db.query("update portfolio_posts set cover_path = slug || '/' || $1, cover_alt = 'Test cover' where slug in ('draft','public')", [coverId]);
+  await db.exec('set role anon');
+  assert.deepEqual((await db.query('select name from storage.objects')).rows, [{ name: 'public/' + coverId }]);
+  await assert.rejects(() => db.query("delete from storage.objects"), /permission denied/i);
+  await db.exec("set role authenticated; set request.jwt.claims = '{\"aal\":\"aal1\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
+  await assert.rejects(() => db.query("insert into storage.objects values ('article-covers', 'unauthorized.jpg')"), /row-level security/i);
 
   await db.exec('set role service_role');
   const receive = async text => (await db.query("select portfolio_receive_message(repeat('a',64),'A','a@example.com',$1) as outcome",[text])).rows[0].outcome;
@@ -60,6 +75,7 @@ try {
   await db.query("delete from portfolio_posts where slug = 'public'");
   await db.exec('set role anon');
   assert.deepEqual(await posts(), []);
+  assert.equal((await db.query('select name from storage.objects')).rows.length, 0);
   assert.equal((await db.query("select slug from portfolio_posts where slug = 'offline-attendance'")).rows.length, 0);
   const ranking = projectDisplay((await db.query('select * from portfolio_project_settings')).rows).filter(project => project.featured);
   assert.equal(ranking[0].slug, 'pookie-prep');

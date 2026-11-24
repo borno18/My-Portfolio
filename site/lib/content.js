@@ -68,7 +68,7 @@ export async function getPosts() {
   const db = publicDatabase();
   if (!db) return basePosts;
   const { data, error } = await db.from('portfolio_posts')
-    .select('slug,title,description,body,published_at').eq('status', 'published').order('published_at', { ascending: false });
+    .select('slug,title,description,body,published_at,cover_path,cover_alt').eq('status', 'published').order('published_at', { ascending: false });
   if (error) throw new Error('Could not load the published blog from Supabase');
   return data;
 }
