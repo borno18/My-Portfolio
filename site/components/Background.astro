@@ -1,0 +1,106 @@
+---
+const scores = [
+  ['Listening', '8.0'],
+  ['Reading', '7.5'],
+  ['Writing', '6.0'],
+  ['Speaking', '6.5'],
+];
+---
+
+<div class="background">
+  <div class="wrap background-inner">
+    <section class="background-row" id="experience" aria-labelledby="experience-heading">
+      <h2 id="experience-heading">Experience</h2>
+      <div>
+        <h3>Assistant Publication Secretary</h3>
+        <p>SWE Society <span class="detail">· Seasonal</span></p>
+        <p class="detail"><time datetime="2026-09">September 2026</time>–Present</p>
+        <p class="detail">Sylhet, Bangladesh · On-site</p>
+      </div>
+    </section>
+
+    <section class="background-row" id="education" aria-labelledby="education-heading">
+      <h2 id="education-heading">Education</h2>
+      <div>
+        <article class="education-entry">
+          <h3>Shahjalal University of Science and Technology</h3>
+          <p>Bachelor of Science in Software Engineering</p>
+          <p class="detail"><time datetime="2024-11">November 2024</time>–<time datetime="2028-06">June 2028</time> (expected)</p>
+        </article>
+        <article class="education-entry">
+          <h3>Jalalabad Cantonment Public School and College</h3>
+          <p>Higher Secondary School Certificate in Science</p>
+          <p class="detail"><time datetime="2022-03">March 2022</time>–<time datetime="2023-11">November 2023</time></p>
+          <p class="detail">Grade <strong>5 out of 5</strong></p>
+        </article>
+      </div>
+    </section>
+
+    <section class="background-row" id="english-proficiency" aria-labelledby="english-heading">
+      <h2 id="english-heading">English proficiency</h2>
+      <div>
+        <h3>International English Language Testing System (IELTS)</h3>
+        <p class="detail">Test taken in <time datetime="2024-10">October 2024</time></p>
+        <dl class="scores">
+          <div class="overall">
+            <dt>Overall band</dt>
+            <dd>7.0</dd>
+          </div>
+          {scores.map(([label, score]) => <div>
+            <dt>{label}</dt>
+            <dd>{score}</dd>
+          </div>)}
+        </dl>
+      </div>
+    </section>
+  </div>
+</div>
+
+<style>
+  .background {
+    background: var(--paper);
+    border-block: 1px solid var(--line);
+  }
+  .background-inner { padding-block: clamp(.5rem, 2vw, 1.25rem); }
+  .background-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: .85rem clamp(1.25rem, 5vw, 4rem);
+    align-items: baseline;
+    padding-block: clamp(1.4rem, 4vw, 2.5rem);
+  }
+  .background-row + .background-row { border-top: 1px solid var(--line); }
+  h2 { font-size: clamp(1.65rem, 3.2vw, 2.75rem); }
+  h3 {
+    font: 600 clamp(1rem, 1.8vw, 1.2rem)/1.35 var(--body);
+    letter-spacing: normal;
+    text-wrap: wrap;
+    margin-bottom: .25rem;
+  }
+  .detail { color: var(--muted); font-size: .9rem; }
+  .education-entry + .education-entry { margin-top: 1.2rem; }
+  .scores {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .55rem 1rem;
+    margin: .85rem 0 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .overall {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: .65rem;
+    padding-bottom: .55rem;
+    border-bottom: 1px solid var(--line);
+  }
+  dt { color: var(--muted); font-size: .875rem; }
+  dd { margin: 0; color: var(--heading); font-weight: 600; }
+  .overall dd { font-size: 1.3rem; }
+  @media (max-width: 680px) {
+    .background-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 400px) {
+    .scores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>

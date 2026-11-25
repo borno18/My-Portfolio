@@ -5,6 +5,7 @@ import Base from '../layouts/Base.astro';
 import Link from '../components/Link.astro';
 import ProjectList from '../components/ProjectList.astro';
 import ArticleTeaser from '../components/ArticleTeaser.astro';
+import Background from '../components/Background.astro';
 import portrait from '../assets/joydip-portrait.webp';
 import { projectDisplay } from '../lib/work.js';
 import { galleryPhotos } from '../lib/photos.js';
@@ -36,6 +37,8 @@ const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software
       <ProjectList projects={featuredProjects} />
     </div>
   </section>
+
+  <Background />
 
   <section class="band wrap news-section" id="blog">
     <div class="section-head newspaper-head"><h2>Blog</h2><Link href="/blog">View all articles</Link></div>
