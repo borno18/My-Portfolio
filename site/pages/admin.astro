@@ -294,11 +294,11 @@ const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', 
       <section class="page-intro"><h1>Portfolio admin</h1><p>Owner sign-in for portfolio publishing.</p></section>
       {notice && <p role="status">{notice}</p>}
     {!db ? <p class="form-status">Owner sign-in requires a connected Supabase account.</p> : !owner.user ? (
-      <form method="post">
+      <form method="post" action="/admin">
         <input type="hidden" name="action" value="login" />
         <label>Email<input name="email" type="email" autocomplete="username" required maxlength="254" /></label>
         <label>Password<input name="password" type="password" autocomplete="current-password" required maxlength="256" /></label>
-        <button class="button">Sign in</button>
+        <button type="submit" class="button">Sign in</button>
       </form>
     ) : <>
       <form method="post"><button name="action" value="logout" class="button secondary">Sign out</button></form>
