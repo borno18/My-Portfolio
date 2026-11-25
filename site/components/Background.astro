@@ -7,28 +7,29 @@ const scores = [
 ];
 ---
 
-<div class="background">
-  <div class="wrap background-inner">
-    <section class="background-row" id="experience" aria-labelledby="experience-heading">
-      <h2 id="experience-heading">Experience</h2>
+<section class="wrap band background" id="background" aria-labelledby="background-heading">
+  <div class="section-head"><h2 id="background-heading">Background</h2></div>
+  <div class="background-grid">
+    <section class="background-panel" id="experience" aria-labelledby="experience-heading">
+      <h3 id="experience-heading">Experience</h3>
       <div>
-        <h3>Assistant Publication Secretary</h3>
+        <h4>Assistant Publication Secretary</h4>
         <p>SWE Society <span class="detail">· Seasonal</span></p>
         <p class="detail"><time datetime="2026-09">September 2026</time>–Present</p>
         <p class="detail">Sylhet, Bangladesh · On-site</p>
       </div>
     </section>
 
-    <section class="background-row" id="education" aria-labelledby="education-heading">
-      <h2 id="education-heading">Education</h2>
+    <section class="background-panel" id="education" aria-labelledby="education-heading">
+      <h3 id="education-heading">Education</h3>
       <div>
         <article class="education-entry">
-          <h3>Shahjalal University of Science and Technology</h3>
+          <h4>Shahjalal University of Science and Technology</h4>
           <p>Bachelor of Science in Software Engineering</p>
           <p class="detail"><time datetime="2024-11">November 2024</time>–<time datetime="2028-06">June 2028</time> (expected)</p>
         </article>
         <article class="education-entry">
-          <h3>Jalalabad Cantonment Public School and College</h3>
+          <h4>Jalalabad Cantonment Public School and College</h4>
           <p>Higher Secondary School Certificate in Science</p>
           <p class="detail"><time datetime="2022-03">March 2022</time>–<time datetime="2023-11">November 2023</time></p>
           <p class="detail">Grade <strong>5 out of 5</strong></p>
@@ -36,12 +37,13 @@ const scores = [
       </div>
     </section>
 
-    <section class="background-row" id="english-proficiency" aria-labelledby="english-heading">
-      <h2 id="english-heading">English proficiency</h2>
+    <section class="background-panel language" id="english-proficiency" aria-labelledby="english-heading">
       <div>
-        <h3>International English Language Testing System (IELTS)</h3>
+        <h3 id="english-heading">English proficiency</h3>
+        <h4>International English Language Testing System (IELTS)</h4>
         <p class="detail">Test taken in <time datetime="2024-10">October 2024</time></p>
-        <dl class="scores">
+      </div>
+      <dl class="scores">
           <div class="overall">
             <dt>Overall band</dt>
             <dd>7.0</dd>
@@ -50,40 +52,50 @@ const scores = [
             <dt>{label}</dt>
             <dd>{score}</dd>
           </div>)}
-        </dl>
-      </div>
+      </dl>
     </section>
   </div>
-</div>
+</section>
 
 <style>
-  .background {
-    background: var(--paper);
-    border-block: 1px solid var(--line);
-  }
-  .background-inner { padding-block: clamp(.5rem, 2vw, 1.25rem); }
-  .background-row {
+  .background-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-    gap: .85rem clamp(1.25rem, 5vw, 4rem);
-    align-items: baseline;
-    padding-block: clamp(1.4rem, 4vw, 2.5rem);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    gap: clamp(.8rem, 2vw, 1.35rem);
   }
-  .background-row + .background-row { border-top: 1px solid var(--line); }
-  h2 { font-size: clamp(1.65rem, 3.2vw, 2.75rem); }
+  .background-panel {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: clamp(1.15rem, 3vw, 2rem);
+  }
+  .language {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    align-items: center;
+    gap: 1rem clamp(1rem, 3vw, 2rem);
+  }
   h3 {
-    font: 600 clamp(1rem, 1.8vw, 1.2rem)/1.35 var(--body);
-    letter-spacing: normal;
-    text-wrap: wrap;
-    margin-bottom: .25rem;
+    margin-bottom: 1rem;
+    font-size: clamp(1.55rem, 2.5vw, 2.15rem);
+  }
+  h4 {
+    margin: 0 0 .2rem;
+    color: var(--heading);
+    font: 600 clamp(1rem, 1.8vw, 1.15rem)/1.35 var(--body);
   }
   .detail { color: var(--muted); font-size: .9rem; }
-  .education-entry + .education-entry { margin-top: 1.2rem; }
+  .education-entry + .education-entry {
+    border-top: 1px solid var(--line);
+    margin-top: .95rem;
+    padding-top: .95rem;
+  }
   .scores {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: .55rem 1rem;
-    margin: .85rem 0 0;
+    margin: 0;
     font-variant-numeric: tabular-nums;
   }
   .overall {
@@ -97,8 +109,8 @@ const scores = [
   dt { color: var(--muted); font-size: .875rem; }
   dd { margin: 0; color: var(--heading); font-weight: 600; }
   .overall dd { font-size: 1.3rem; }
-  @media (max-width: 680px) {
-    .background-row { grid-template-columns: 1fr; }
+  @media (max-width: 720px) {
+    .background-grid, .language { grid-template-columns: 1fr; }
   }
   @media (max-width: 400px) {
     .scores { grid-template-columns: repeat(2, minmax(0, 1fr)); }

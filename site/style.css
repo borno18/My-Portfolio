@@ -34,6 +34,7 @@
 }
 
 * { box-sizing: border-box; }
+html { scroll-padding-top: var(--masthead-offset, 5.25rem); }
 body { margin: 0; min-height: 100dvh; display: flex; flex-direction: column; background: var(--canvas); color: var(--ink); font: 400 1rem/1.6 var(--body); }
 main { flex: 1; }
 [hidden] { display: none !important; }
@@ -57,7 +58,7 @@ p { max-width: 66ch; }
 .skip { position: fixed; top: .6rem; left: .6rem; padding: .75rem; background: var(--paper); transform: translateY(-165%); z-index: 5; }
 .skip:focus { transform: translateY(0); }
 
-.masthead { background: var(--sage-soft); border-bottom: 1px solid var(--line); }
+.masthead { position: sticky; top: 0; z-index: 4; background: var(--sage-soft); border-bottom: 1px solid var(--line); }
 .site-header { min-height: 72px; display: grid; grid-template-columns: 1fr auto auto; align-items: center; column-gap: clamp(1rem, 4vw, 3rem); }
 .wordmark { font-size: 1rem; font-weight: 600; white-space: nowrap; }
 .site-header a { text-decoration: none; }
@@ -213,11 +214,14 @@ form textarea { min-height: 6rem; resize: vertical; }
   .portrait-panel img { height: clamp(320px, 51vw, 420px); }
   .gallery { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 800px) {
+  html { scroll-padding-top: var(--masthead-offset, 9rem); }
+  .site-header { grid-template-columns: 1fr auto; row-gap: 0; padding-block: .5rem 0; }
+  .site-header nav { grid-column: 1 / -1; grid-row: 2; gap: 0 clamp(.4rem, 1.6vw, .875rem); font-size: clamp(.75rem, 3.15vw, .875rem); }
+  .theme-toggle { grid-column: 2; grid-row: 1; }
+}
 @media (max-width: 680px) {
   .wrap, .reading { width: calc(100% - 2rem); }
-  .site-header { grid-template-columns: 1fr auto; row-gap: 0; padding-block: .5rem 0; }
-  .site-header nav { grid-column: 1 / -1; grid-row: 2; gap: 0 clamp(.5rem, 2vw, .875rem); font-size: .875rem; }
-  .theme-toggle { grid-column: 2; grid-row: 1; }
   .hero, .photo-feature, .contact-layout, .project-row { grid-template-columns: 1fr; }
   .hero { padding-block: 2rem 3rem; gap: 1.5rem; }
   .hero-copy { padding-block: 0; }

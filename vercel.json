@@ -11,6 +11,10 @@
         { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
       ]
     },
-    { "source": "/notes", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] }
+    { "source": "/notes", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] },
+    {
+      "source": "/Joydip-Majumdar-CV.pdf",
+      "headers": [{ "key": "Content-Disposition", "value": "attachment; filename=\"Joydip-Majumdar-CV.pdf\"" }]
+    }
   ]
 }

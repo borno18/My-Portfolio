@@ -23,6 +23,12 @@
   document.addEventListener('DOMContentLoaded', () => {
     const button = document.querySelector('[data-theme-toggle]');
     apply(selected || automatic());
+    const masthead = document.querySelector('.masthead');
+    if (masthead && 'ResizeObserver' in window) {
+      const updateOffset = () => root.style.setProperty('--masthead-offset', masthead.offsetHeight + 'px');
+      updateOffset();
+      new ResizeObserver(updateOffset).observe(masthead);
+    }
     button?.addEventListener('click', () => {
       selected = root.dataset.theme === 'dark' ? 'light' : 'dark';
       try { localStorage.setItem(storageKey, selected); } catch {}
