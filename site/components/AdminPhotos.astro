@@ -4,7 +4,7 @@ import AdminIcon from './AdminIcon.astro';
 import AdminPhotoFields from './AdminPhotoFields.astro';
 import { cloudImage } from '../lib/content.js';
 import { presetImages } from '../lib/photos.js';
-const { items, albums, album, photoCategory, photoSort, photoTotal, search, selectedId, uploadOpen, canUpload, photoUrl } = Astro.props;
+const { items, albums, album, photoCategory, photoSort, photoTotal, search, selectedId, uploadOpen, canUpload, photoUrl, notice } = Astro.props;
 const categories = new Map();
 const term = search.toLowerCase();
 const inAlbum = items.filter(photo => !album || photo.album_id === album);
@@ -14,36 +14,34 @@ const shown = inAlbum.filter(photo =>
   (!term || [photo.title, photo.alt, photo.category, photo.caption, ...photo.tags].some(value => value.toLowerCase().includes(term))));
 if (photoSort === 'title') shown.sort((a, b) => a.title.localeCompare(b.title));
 if (photoSort === 'recent') shown.sort((a, b) => b.created_at.localeCompare(a.created_at));
-const selected = !uploadOpen && selectedId !== 'none' && (items.find(photo => photo.id === selectedId) || shown[0]);
+const selected = !uploadOpen && items.find(photo => photo.id === selectedId);
 const detailsOpen = Boolean((uploadOpen && canUpload) || selected);
 const canReorder = photoSort === 'order' && shown.length > 1 && shown.length === photoTotal;
 const detailUrl = id => photoUrl({ id }) + '#photo-inspector';
 const fileHelp = 'JPEG, PNG, or WebP';
 const uploadUrl = photoUrl() + '&upload=yes';
-const currentUrl = photoUrl();
+const currentUrl = photoUrl({ id: null });
 ---
-<div class:list={['admin-photo-split', { 'has-inspector': detailsOpen }]}>
+<div class="admin-photo-split">
   <section class="admin-pane photo-library" aria-labelledby="photo-library-title">
     <header class="admin-section-head">
       <div><h2 id="photo-library-title">Photography</h2><p class="admin-muted">Manage portfolio images, albums, and display order.</p></div>
-      {canUpload && <a class="btn btn-primary button" href={uploadUrl + '#photo-inspector'}><AdminIcon name="upload" />Upload photos</a>}
+      {canUpload && <a class="btn btn-primary button" data-photo-upload-link href={uploadUrl + '#photo-inspector'}><AdminIcon name="upload" />Upload photos</a>}
     </header>
     {!canUpload && <p class="form-status">Cloudinary is required to upload, replace, or remove hosted images.</p>}
-    <form method="get" class="admin-tools photo-tools">
+    <form method="get" action="/admin" class="admin-tools photo-tools" data-live-filters="photos">
       <input type="hidden" name="section" value="photos" />
       {album && <input type="hidden" name="album" value={album} />}
       <label class="admin-search"><AdminIcon name="search" /><input name="q" type="search" aria-label="Search photos" placeholder="Search photos…" value={search} maxlength="100" /></label>
       <select aria-label="Category" name="category"><option value="">All categories</option>{[...categories.keys()].sort().map(name => <option value={name} selected={name === photoCategory}>{name}</option>)}</select>
       <select aria-label="Sort photos" name="sort"><option value="order">Display order</option><option value="recent" selected={photoSort === 'recent'}>Newest first</option><option value="title" selected={photoSort === 'title'}>Title</option></select>
-      <button class="btn btn-outline button secondary">Apply</button>
+      <noscript><button class="button secondary">Apply filters</button></noscript>
     </form>
-    {categories.size > 0 && <nav class="admin-chips" aria-label="Photo categories">
-      <a href={photoUrl({ id: null, category: '' })} aria-current={!photoCategory ? 'true' : undefined}>All ({inAlbum.length})</a>
-      {[...categories].sort(([a], [b]) => a.localeCompare(b)).map(([category, count]) =>
-        <a href={photoUrl({ id: null, category })} aria-current={photoCategory === category ? 'true' : undefined}>{category} ({count})</a>)}
-    </nav>}
+    <div class="photo-gallery" data-live-results="photos">
+    {canUpload && <span data-photo-upload-state data-url={uploadUrl + '#photo-inspector'} hidden></span>}
     {shown.length > 0 && <>
       <form class="photo-bulk" method="post" action={currentUrl} id="photo-bulk">
+        <span class="admin-muted" data-photo-selected aria-live="polite"></span>
         <label class="photo-select-all" hidden><span><input type="checkbox" data-select-photos /> Select all</span></label>
         <button class="button secondary" name="action" value="feature-photos"><AdminIcon name="star" />Feature</button>
         <button class="button secondary" name="action" value="hide-photos">Hide</button>
@@ -60,48 +58,57 @@ const currentUrl = photoUrl();
       </form>
       {canReorder && <form method="post" action={currentUrl} class="photo-reorder" hidden>
         <input type="hidden" name="action" value="reorder-photos" />
-        <span class="admin-muted">Drag photos to reorder.</span>
-        <button class="button secondary" type="submit" disabled>Save order</button>
+        <span class="admin-muted" data-order-feedback aria-live="polite">Display order changed.</span>
+        <button class="button secondary" type="button" data-discard-order>Discard</button>
+        <button class="button" type="submit">Save order</button>
       </form>}
     </>}
-    {shown.length ? <ul class="photo-cards" data-photo-grid>
+    {shown.length ? <ul class="photo-cards" data-photo-grid aria-describedby={canReorder ? 'photo-order-hint' : undefined}>
       {shown.map(photo => {
         const preset = !photo.public_id && presetImages.get(photo.bundled_key);
         const thumbnail = !preset && cloudImage(photo, 420);
         return <li class:list={['photo-card', { 'is-selected': selected?.id === photo.id }]} data-photo-id={photo.id}>
           <input type="checkbox" class="photo-checkbox" aria-label={'Select ' + photo.title} value={photo.id} name="id" form="photo-bulk" />
-          <a class="photo-image" href={detailUrl(photo.id)} aria-label={'Edit ' + photo.title}>
+          <a class="photo-image" href={detailUrl(photo.id)} aria-label={'Edit ' + photo.title} aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}>
             {preset ? <Image src={preset} alt={photo.alt} width={420} format="webp" loading="lazy" /> :
               thumbnail ? <img src={thumbnail} alt={photo.alt} loading="lazy" width="420" height="320" /> : <AdminIcon name="photos" />}
           </a>
-          <div class="photo-card-copy"><strong>{photo.title}</strong><div class="photo-labels">
-            <span class="badge admin-count">{photo.category}</span>{!photo.visible && <span class="badge admin-count">Hidden</span>}
-          </div></div>
+          <div class="photo-card-copy"><strong>{photo.title}</strong>
+            <span class:list={['blog-dot', photo.visible ? 'status-published' : 'status-archived']} role="img" aria-label={photo.visible ? 'Published' : 'Hidden'} title={photo.visible ? 'Published' : 'Hidden'}></span>
+          </div>
           <div class="photo-card-actions">
-            <a href={detailUrl(photo.id)} aria-current={selected?.id === photo.id ? 'true' : undefined}>Edit</a>
-            <form method="post" action={photoUrl({ id: photo.id })}>
+            <a class="button secondary" href={detailUrl(photo.id)} tabindex="-1" aria-hidden="true" title="Edit photo"><AdminIcon name="edit" /></a>
+            <form method="post" action={currentUrl}>
               <input type="hidden" name="id" value={photo.id} />
-              <button name="action" value={photo.featured ? 'unfeature-photos' : 'feature-photos'} aria-pressed={photo.featured}><AdminIcon name="star" />{photo.featured ? 'Featured' : 'Feature'}</button>
+              <button class="button secondary" name="action" value={photo.featured ? 'unfeature-photos' : 'feature-photos'} aria-pressed={photo.featured} aria-label={'Feature ' + photo.title} title={photo.featured ? 'Unfeature photo' : 'Feature photo'}><AdminIcon name="star" /></button>
             </form>
+            {canReorder && <button class="button secondary photo-touch-drag" type="button" data-photo-drag aria-label={'Drag to reorder ' + photo.title} title="Drag to reorder" hidden><AdminIcon name="move" /></button>}
           </div>
         </li>;
       })}
     </ul> : <p class="admin-empty">No photographs match this view.</p>}
-  </section>
-  {detailsOpen && <section id="photo-inspector" class="admin-pane photo-inspector" aria-labelledby="photo-inspector-title">
-    <div class="admin-section-head"><h3 id="photo-inspector-title">{uploadOpen ? 'Upload photograph' : 'Photo details'}</h3>
-      <a href={photoUrl({ id: 'none' })} class="button secondary" aria-label="Close photo details">×</a>
+    {canReorder && <p class="admin-sr-only" id="photo-order-hint">Drag a photo to reorder, or focus it and press Alt plus Up or Down.</p>}
     </div>
-    {selected && <div class="photo-inspector-media">
-      {selected.public_id ? <img src={cloudImage(selected, 320)} alt={selected.alt} width="160" height="160" /> :
-        presetImages.has(selected.bundled_key) && <Image src={presetImages.get(selected.bundled_key)} alt={selected.alt} width={160} format="webp" />}
-      <div><strong>{selected.title}</strong><p class="admin-muted">{selected.width && selected.height ? selected.width + ' × ' + selected.height : selected.category}</p></div>
-    </div>}
+  </section>
+  {detailsOpen && <dialog open id="photo-inspector" class="admin-pane photo-inspector" aria-labelledby="photo-inspector-title" data-photo-id={selected?.id}>
+    <div class="admin-section-head"><h3 id="photo-inspector-title">{uploadOpen ? 'Upload photograph' : 'Photo details'}</h3>
+      <a href={currentUrl} data-close-photo class="button secondary" aria-label="Close photo details" autofocus>×</a>
+    </div>
+    {notice && <p class="form-status" role="status">{notice}</p>}
     <form method="post" action={uploadOpen ? uploadUrl : photoUrl({ id: selected.id })} enctype="multipart/form-data" data-photo-upload={canUpload ? '' : undefined}>
       {selected && <input type="hidden" name="id" value={selected.id} />}
       <input type="hidden" name="action" value={uploadOpen ? 'publish-photo' : 'edit-photo'} />
-      {canUpload && <label>{uploadOpen ? 'Photograph' : 'Replace image'}<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="photo-file-help" required={uploadOpen} /></label>}
-      {canUpload && <p id="photo-file-help" class="admin-muted">{fileHelp}</p>}
+      <div class="photo-inspector-media">
+        {selected && (selected.public_id ? <img src={cloudImage(selected, 320)} alt={selected.alt} width="160" height="160" /> :
+          presetImages.has(selected.bundled_key) && <Image src={presetImages.get(selected.bundled_key)} alt={selected.alt} width={160} format="webp" />)}
+        <div>
+          {selected && <><strong>{selected.title}</strong><p class="admin-muted">{selected.width && selected.height ? selected.width + ' × ' + selected.height : selected.category}</p></>}
+          {canUpload && <label class="button secondary photo-file-label"><AdminIcon name="upload" />{uploadOpen ? 'Choose image' : 'Replace image'}
+            <input class="admin-sr-only" name="photo" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="photo-file-help" required={uploadOpen} />
+          </label>}
+          {canUpload && <p id="photo-file-help" class="admin-muted" data-file-help aria-live="polite">{fileHelp}</p>}
+        </div>
+      </div>
       <AdminPhotoFields photo={selected || undefined} {albums} {album} />
       <p role="status" data-upload-status hidden></p>
       <div class="actions photo-save"><button class="btn btn-primary button">{uploadOpen ? 'Upload photograph' : 'Save changes'}</button>
@@ -114,55 +121,21 @@ const currentUrl = photoUrl();
         <button class="button secondary" name="action" value="remove-photo">Remove from gallery</button>
       </form>
     </details>}
-  </section>}
+  </dialog>}
 </div>
 <script>
-  const selectAll = document.querySelector<HTMLInputElement>('[data-select-photos]');
-  const boxes = Array.from(document.querySelectorAll<HTMLInputElement>('.photo-checkbox'));
-  if (selectAll && boxes.length) {
-    selectAll.closest('label')!.hidden = false;
-    const update = () => {
-      const count = boxes.filter(box => box.checked).length;
-      selectAll.checked = count === boxes.length;
-      selectAll.indeterminate = count > 0 && count < boxes.length;
-    };
-    selectAll.addEventListener('change', () => { for (const box of boxes) box.checked = selectAll.checked; });
-    for (const box of boxes) box.addEventListener('change', update);
-    update();
-  }
-  const grid = document.querySelector<HTMLElement>('[data-photo-grid]');
-  const reorder = document.querySelector<HTMLFormElement>('.photo-reorder');
-  const saveOrder = reorder?.querySelector('button');
-  if (grid && reorder && saveOrder && matchMedia('(any-pointer: fine)').matches) {
-    reorder.hidden = false;
-    let dragged: HTMLElement | null = null;
-    for (const card of grid.querySelectorAll<HTMLElement>('[data-photo-id]')) {
-      card.draggable = true;
-      for (const child of card.querySelectorAll<HTMLElement>('a, img')) child.draggable = false;
-      card.addEventListener('dragstart', event => {
-        dragged = card;
-        event.dataTransfer?.setData('text/plain', card.dataset.photoId || '');
-        card.classList.add('is-dragging');
-      });
-      card.addEventListener('dragend', () => { card.classList.remove('is-dragging'); dragged = null; });
-      card.addEventListener('dragover', event => { if (dragged) event.preventDefault(); });
-      card.addEventListener('drop', event => {
-        if (!dragged || dragged === card) return;
-        event.preventDefault();
-        const comesBefore = Boolean(dragged.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING);
-        if (comesBefore) card.after(dragged);
-        else card.before(dragged);
-        saveOrder.disabled = false;
-      });
-    }
-    reorder.addEventListener('submit', () => {
-      for (const card of grid.querySelectorAll<HTMLElement>('[data-photo-id]')) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'id';
-        input.value = card.dataset.photoId || '';
-        reorder.append(input);
-      }
-    });
-  }
+  import { setupPhotoDrawer, setupPhotoGallery } from '../lib/admin-photo-workspace';
+  const gallery = document.querySelector<HTMLElement>('.photo-gallery');
+  if (gallery) setupPhotoGallery(gallery);
+  document.addEventListener('admin:results-updated', event => {
+    const updated = (event as CustomEvent<HTMLElement>).detail;
+    if (updated.matches('.photo-gallery')) setupPhotoGallery(updated);
+  });
+  window.addEventListener('beforeunload', event => {
+    if (!document.querySelector('.photo-reorder:not([hidden]):not([data-saving])')) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+  const drawer = document.querySelector<HTMLDialogElement>('#photo-inspector');
+  if (drawer) setupPhotoDrawer(drawer);
 </script>

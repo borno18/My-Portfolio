@@ -1,19 +1,18 @@
 ---
-const { photo = { display_order: 0, visible: true }, albums = [], album = '' } = Astro.props;
+const { albums = [], album = '', photo = { visible: true, album_id: album } } = Astro.props;
 ---
 <label>Title<input name="title" required maxlength="140" value={photo.title} /></label>
 <label>Alt text<input name="alt" required maxlength="250" value={photo.alt} /></label>
 <div class="photo-field-pair">
   <label>Category<input name="category" required maxlength="40" value={photo.category} /></label>
   <label>Album<select name="album_id"><option value="">No album</option>{albums.map(item =>
-    <option value={item.id} selected={(photo.album_id ?? album) === item.id}>{item.name}</option>
+    <option value={item.id} selected={photo.album_id === item.id}>{item.name}</option>
   )}</select></label>
 </div>
 <label>Tags<input name="tags" maxlength="380" value={photo.tags?.join(', ')} aria-describedby="photo-tags-hint" /></label>
 <p id="photo-tags-hint" class="admin-muted">Separate tags with commas.</p>
 <label>Caption<textarea name="caption" maxlength="1000">{photo.caption}</textarea></label>
 <div class="photo-field-pair">
-  <label>Display order<input name="display_order" type="number" min="0" max="999" required value={photo.display_order} /></label>
+  <label>Portfolio visibility<select name="visible"><option value="yes" selected={photo.visible}>Published</option><option value="no" selected={!photo.visible}>Hidden</option></select></label>
   <label class="photo-check"><span><input class="toggle" type="checkbox" name="featured" value="yes" checked={photo.featured} /> Featured</span></label>
 </div>
-<label>Portfolio visibility<select name="visible"><option value="yes" selected={photo.visible}>Published</option><option value="no" selected={!photo.visible}>Hidden</option></select></label>

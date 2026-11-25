@@ -2,8 +2,15 @@
 import AdminIcon from './AdminIcon.astro';
 const { items, unread, search, filter, inboxReady, hasNext, page, selectedId } = Astro.props;
 const selected = items.find(item => item.id === selectedId) || items[0];
-const summary = item => item.message.split(/\r?\n/).find(line => line.trim())?.trim().slice(0, 100) || 'Contact message';
+const topicHeader = /^Topic:[ \t]*([^\r\n]+)\r?\n[ \t]*\r?\n/i;
+const topic = item => item.message.match(topicHeader)?.[1].trim();
+const summary = item => topic(item) || item.message.split(/\r?\n/).find(line => line.trim())?.trim().slice(0, 100) || 'Contact message';
 const date = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' }).format(new Date(value));
+const day = new Intl.DateTimeFormat('en', { dateStyle: 'short', timeZone: 'Asia/Dhaka' });
+const today = day.format(new Date());
+const clock = new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Dhaka' });
+const monthDay = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'Asia/Dhaka' });
+const compactDate = value => (day.format(new Date(value)) === today ? clock : monthDay).format(new Date(value));
 const url = (currentPage, id) => {
   const query = new URLSearchParams({ section: 'inbox' });
   if (search) query.set('q', search);
@@ -27,7 +34,7 @@ const forward = selected && 'mailto:?subject=' + encodeURIComponent('Fwd: ' + su
     </div>
     <p class="admin-muted">Manage messages and inquiries from your portfolio.</p>
     {!inboxReady && <p class="form-status">The public contact form is temporarily unavailable.</p>}
-    <form method="get" class="admin-tools inbox-tools">
+    <form method="get" action="/admin" class="admin-tools inbox-tools" data-live-filters="inbox">
       <input type="hidden" name="section" value="inbox" />
       <label class="admin-search"><AdminIcon name="search" /><input aria-label="Search messages" placeholder="Search messages…" name="q" type="search" maxlength="100" value={search} /></label>
       <label class="admin-inline-label">Status<select name="status">
@@ -36,16 +43,16 @@ const forward = selected && 'mailto:?subject=' + encodeURIComponent('Fwd: ' + su
         <option value="read" selected={filter === 'read'}>Read</option>
         <option value="starred" selected={filter === 'starred'}>Starred</option>
       </select></label>
-      <button class="btn btn-outline button secondary">Filter</button>
+      <noscript><button class="button secondary">Apply filters</button></noscript>
     </form>
   </header>
-  <div class="admin-inbox-split">
+  <div class="admin-inbox-split" data-live-results="inbox">
     <div class="inbox-index">
       {items.length ? <ul class="inbox-rows">
-        {items.map(item => <li><a href={url(page, item.id) + '#message-detail'} aria-current={selected?.id === item.id ? 'true' : undefined}>
-          <span class="inbox-row-icon" aria-label={item.read_at ? 'Read' : 'Unread'}>{item.read_at ? <AdminIcon name="inbox" /> : <span class="inbox-dot"></span>}</span>
-          <span class="inbox-row-text"><strong>{item.name}</strong><span>{summary(item)}</span></span>
-          <span class="inbox-row-meta"><time datetime={item.created_at}>{date(item.created_at)}</time>{item.starred && <AdminIcon name="star" />}</span>
+        {items.map(item => <li><a href={url(page, item.id) + '#message-detail'} class:list={[{ 'is-unread': !item.read_at }]} aria-current={selected?.id === item.id ? 'true' : undefined}>
+          <span class="inbox-row-icon">{!item.read_at && <><span class="inbox-dot" aria-hidden="true"></span><span class="admin-sr-only">Unread</span></>}</span>
+          <span class="inbox-row-text"><strong title={item.name}>{item.name}</strong>{topic(item) ? <span class="badge inbox-topic">{topic(item)}</span> : <span>{summary(item)}</span>}</span>
+          <span class="inbox-row-meta"><time datetime={item.created_at} title={date(item.created_at)}>{compactDate(item.created_at)}</time>{item.starred && <AdminIcon name="star" />}</span>
         </a></li>)}
       </ul> : <p class="admin-empty">No messages in this view.</p>}
       {(page > 1 || hasNext) && <nav class="admin-pagination" aria-label="Message pages">
@@ -58,7 +65,10 @@ const forward = selected && 'mailto:?subject=' + encodeURIComponent('Fwd: ' + su
       <h3 id="message-title">{subject}</h3>
       <header class="inbox-sender">
         <span class="inbox-avatar" aria-hidden="true">{Array.from(selected.name)[0]?.toLocaleUpperCase()}</span>
-        <div><strong>{selected.name}</strong><p class="admin-muted">{selected.email}</p></div>
+        <div><strong>{selected.name}</strong><div class="inbox-email"><span class="admin-muted">{selected.email}</span>
+          <button type="button" class="button secondary inbox-copy" data-copy-email={selected.email} aria-label="Copy email address" title="Copy email address"><AdminIcon name="copy" /></button>
+          <span class="admin-muted" data-copy-feedback aria-live="polite"></span>
+        </div></div>
         <time class="admin-muted" datetime={selected.created_at}>{date(selected.created_at)}</time>
         <form method="post" action={actionUrl}>
           <input type="hidden" name="id" value={selected.id} />
@@ -66,22 +76,22 @@ const forward = selected && 'mailto:?subject=' + encodeURIComponent('Fwd: ' + su
           <button class:list={['btn btn-outline button secondary inbox-star', { 'is-starred': selected.starred }]} name="action" value="star-message" aria-label="Star message" aria-pressed={selected.starred}><AdminIcon name="star" /></button>
         </form>
       </header>
-      <div class="admin-message">{selected.message.split(/(?:\r?\n[ \t]*){2,}/).map(paragraph => <p>{paragraph}</p>)}</div>
+      <div class="admin-message">{selected.message.replace(topicHeader, '').split(/(?:\r?\n[ \t]*){2,}/).map(paragraph => <p>{paragraph}</p>)}</div>
       <div class="actions inbox-actions">
         <a class="btn btn-primary button inbox-reply" href={reply}><AdminIcon name="reply" />Reply</a>
         <a class="btn btn-outline button secondary" href={forward}><AdminIcon name="forward" />Forward</a>
-        <details class="admin-confirm"><summary class="button secondary"><AdminIcon name="delete" />Delete</summary>
+        <form method="post" action={actionUrl}>
+          <input type="hidden" name="id" value={selected.id} />
+          <input type="hidden" name="read" value={selected.read_at ? 'no' : 'yes'} />
+          <button class="btn btn-outline button secondary" name="action" value="mark-message"><AdminIcon name="inbox" />Mark as {selected.read_at ? 'unread' : 'read'}</button>
+        </form>
+        <details class="admin-confirm inbox-delete"><summary class="button secondary"><AdminIcon name="delete" />Delete</summary>
           <form method="post" action={actionUrl}>
             <input type="hidden" name="id" value={selected.id} />
             <label><span><input type="checkbox" name="confirm" value="yes" required /> Permanently delete this message</span></label>
             <button class="button secondary" name="action" value="delete-message">Delete message</button>
           </form>
         </details>
-        <form method="post" action={actionUrl}>
-          <input type="hidden" name="id" value={selected.id} />
-          <input type="hidden" name="read" value={selected.read_at ? 'no' : 'yes'} />
-          <button class="btn btn-outline button secondary" name="action" value="mark-message"><AdminIcon name="inbox" />Mark as {selected.read_at ? 'unread' : 'read'}</button>
-        </form>
       </div>
     </article>}
   </div>

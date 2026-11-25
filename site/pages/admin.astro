@@ -320,7 +320,7 @@ if (owner.verified) {
           <form method="post"><button name="action" value="logout" class="btn btn-outline button secondary">Sign out</button></form>
         </div>}
       </div>
-      {notice && <p role="status">{notice}</p>}
+      {notice && !(section === 'photos' && ((canUpload && params.get('upload') === 'yes') || items.some(photo => photo.id === (editedPhotoId || params.get('photo'))))) && <p role="status">{notice}</p>}
       <div class="admin-grid">
         <nav class="admin-nav" aria-label="Admin sections">
           {Object.entries(adminSections).map(([key, label]) => <a href={'/admin?section=' + key} aria-current={key === section ? 'page' : undefined}>
@@ -341,7 +341,7 @@ if (owner.verified) {
         <div class:list={['admin-main', 'admin-' + section]}>
           {section === 'blog' && <AdminBlog {items} {post} {originalSlug} {preview} {editing} {search} {filter} {postCount} {postStatus} {blogUrl} page={repoPage} {hasNext} />}
           {section === 'inbox' && <AdminInbox {items} {unread} {search} {filter} {inboxReady} {hasNext} page={repoPage} selectedId={params.get('message')} />}
-          {section === 'photos' && <AdminPhotos {items} {albums} {album} {photoCategory} {photoSort} {photoTotal} {search} {canUpload} {photoUrl}
+          {section === 'photos' && <AdminPhotos {items} {albums} {album} {photoCategory} {photoSort} {photoTotal} {search} {canUpload} {photoUrl} {notice}
             selectedId={editedPhotoId || params.get('photo')} uploadOpen={params.get('upload') === 'yes'} />}
           {section === 'projects' && <AdminProjects projects={items} {repositories} {githubUnavailable} {syncedAt} {search}
             repoFilter={filter} {repoLanguage} {repoSort} page={repoPage} {projectUrl} />}
@@ -373,6 +373,22 @@ if (owner.verified) {
   </div>
 </Base>}
 <script>
+  import { setupLiveFilters } from '../lib/admin-live-filters';
+  setupLiveFilters();
+
+  document.addEventListener('click', async event => {
+    const button = (event.target as Element).closest<HTMLButtonElement>('[data-copy-email]');
+    if (!button) return;
+    const feedback = button.parentElement?.querySelector<HTMLElement>('[data-copy-feedback]');
+    if (!feedback) return;
+    try {
+      await navigator.clipboard.writeText(button.dataset.copyEmail || '');
+      feedback.textContent = 'Copied';
+    } catch {
+      feedback.textContent = 'Could not copy';
+    }
+  });
+
   for (const form of document.querySelectorAll<HTMLFormElement>('[data-photo-upload]')) {
     const input = form.querySelector<HTMLInputElement>('input[type=file]');
     const button = form.querySelector<HTMLButtonElement>('button');

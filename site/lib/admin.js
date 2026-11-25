@@ -18,7 +18,6 @@ export function photoFields(form) {
     alt: field(form, 'alt', 250),
     category: field(form, 'category', 40),
     caption: field(form, 'caption', 1000, true),
-    display_order: displayOrder(form),
     album_id: albumId(form),
     visible: form.get('visible') === 'yes',
     featured: form.get('featured') === 'yes',

@@ -43,8 +43,8 @@ const dateTime = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', t
   <header class="admin-section-head">
     <div><h2 id="projects-admin-title">Projects (GitHub)</h2><p class="admin-muted">Manage your repositories and choose which projects appear on the portfolio.</p></div>
     <div class="actions repo-heading-actions">
-      {syncedAt && <span class="admin-muted repo-connection"><span aria-hidden="true"></span>GitHub account <strong>{githubOwner}</strong></span>}
-      <a class="btn btn-primary button admin-sage-action" href={actionUrl + '&sync=yes'}><AdminIcon name="sync" />Sync now</a>
+      <a class="admin-muted repo-connection" href={profile} target="_blank" rel="noopener noreferrer" aria-describedby="new-tab-description">{syncedAt && <span aria-hidden="true"></span>}{githubOwner} ↗</a>
+      <a class="btn btn-primary button" data-repo-sync href={actionUrl + '&sync=yes'}><AdminIcon name="sync" />Sync now</a>
     </div>
   </header>
   {githubUnavailable && <p class="form-status">GitHub is temporarily unavailable. Saved portfolio projects are still available.</p>}
@@ -52,26 +52,27 @@ const dateTime = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', t
     <div><AdminIcon name="projects" /><div><strong>{syncedAt ? repositories.length : '—'}</strong><p class="admin-muted">GitHub repositories</p></div></div>
     <div><AdminIcon name="star" /><div><strong>{projects.filter(project => project.featured).length}</strong><p class="admin-muted">Featured on portfolio</p></div></div>
     <div><AdminIcon name="sync" /><div><strong class="repo-stat-label">Last synced</strong><p class="admin-muted">{syncedAt ? <time datetime={syncedAt}>{dateTime(syncedAt)}</time> : 'Awaiting GitHub'}</p></div></div>
-    <a class="btn btn-primary button admin-sage-action" href={profile} target="_blank" rel="noopener noreferrer" aria-describedby="new-tab-description">View on GitHub ↗</a>
   </div>
-  <form method="get" class="admin-tools repo-tools">
+  <form method="get" action="/admin" class="admin-tools repo-tools" data-live-filters="projects">
     <input type="hidden" name="section" value="projects" />
     <label class="admin-search"><AdminIcon name="search" /><input name="q" type="search" maxlength="100" aria-label="Search repositories" placeholder="Search repositories…" value={search} /></label>
     <select name="status" aria-label="Featured status"><option value="">All repositories</option><option value="featured" selected={repoFilter === 'featured'}>Featured</option><option value="unfeatured" selected={repoFilter === 'unfeatured'}>Unfeatured</option></select>
     <select name="language" aria-label="Language"><option value="">All languages</option>{languages.map(language => <option value={language} selected={language === repoLanguage}>{language}</option>)}</select>
     <select name="sort" aria-label="Sort repositories"><option value="updated">Recently updated</option><option value="name" selected={repoSort === 'name'}>Name</option><option value="stars" selected={repoSort === 'stars'}>Most stars</option><option value="placement" selected={repoSort === 'placement'}>Display order</option></select>
-    <button class="btn btn-outline button secondary">Apply</button>
+    <noscript><button class="button secondary">Apply filters</button></noscript>
   </form>
+  <div data-live-results="projects">
+  <div data-repo-sync-state data-url={actionUrl + '&sync=yes'} hidden></div>
   {visible.length ? <>
     <div class="repo-table-wrap" role="region" aria-label="GitHub repository table" tabindex="0">
       <table class="table repo-table">
-        <thead><tr><th scope="col">Repository</th><th scope="col">Description</th><th scope="col">Language</th><th scope="col">Stars</th><th scope="col">Updated</th><th scope="col">Featured</th><th scope="col">Settings</th></tr></thead>
+        <thead><tr><th scope="col">Repository</th><th scope="col">Description</th><th scope="col">Language</th><th scope="col">Updated</th><th scope="col">Featured</th><th scope="col">Placement</th></tr></thead>
         <tbody>
           {visible.map(row => <tr>
-            <th scope="row"><a href={row.href} target="_blank" rel="noopener noreferrer" aria-describedby="new-tab-description"><AdminIcon name="projects" />{row.name} ↗</a></th>
-            <td class="repo-description">{row.description || '—'}</td>
+            <th scope="row"><a href={row.href} target="_blank" rel="noopener noreferrer" aria-describedby="new-tab-description">{row.name} ↗</a>
+              {row.stars != null && <span class="repo-stars"><AdminIcon name="star" />{row.stars}<span class="admin-sr-only"> stars</span></span>}</th>
+            <td class="repo-description">{row.description || <em class="admin-muted">No description</em>}</td>
             <td>{row.language ? <span class="badge admin-count">{row.language}</span> : '—'}</td>
-            <td>{row.stars == null ? '—' : <><AdminIcon name="star" /> {row.stars}</>}</td>
             <td>{row.updatedAt ? <time datetime={row.updatedAt}>{date(row.updatedAt)}</time> : '—'}</td>
             <td><form method="post" action={actionUrl} class="repo-toggle-form">
               {row.project ? <>
@@ -80,15 +81,15 @@ const dateTime = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', t
               </> : <input type="hidden" name="repository" value={row.name} />}
               <button class="repo-switch" role="switch" aria-checked={Boolean(row.project?.featured)} aria-label={'Feature ' + row.name} name="action" value={row.project ? 'toggle-project' : 'feature-repository'}></button>
             </form></td>
-            <td>{row.project && <details class="repo-settings">
-              <summary aria-label={'Placement settings for ' + row.name}>Placement</summary>
+            <td>{row.project ? <details class="repo-settings">
+              <summary class="button secondary" title="Edit portfolio placement" aria-label={'Edit placement for ' + row.name}><AdminIcon name="sliders" />Edit</summary>
               <form method="post" action={actionUrl}>
                 <input type="hidden" name="slug" value={row.project.slug} />
                 <label><span><input name="featured" type="checkbox" value="yes" checked={row.project.featured} /> Feature on portfolio</span></label>
                 <label>Display order<input type="number" name="display_order" min="0" max="999" required value={row.project.display_order} /></label>
                 <button class="button secondary" name="action" value="save-project">Save placement</button>
               </form>
-            </details>}</td>
+            </details> : <span class="repo-placement-unavailable" title="Feature this repository to enable placement">Not added</span>}</td>
           </tr>)}
         </tbody>
       </table>
@@ -102,4 +103,5 @@ const dateTime = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', t
       </nav>}
     </div>
   </> : <p class="admin-empty">No repositories match this view.</p>}
+  </div>
 </section>
