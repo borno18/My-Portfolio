@@ -33,19 +33,19 @@
   --action-text: #142213;
   background: radial-gradient(ellipse at 65% 12%, #1e2922, var(--canvas) 66%);
 }
-.admin-page .wrap {width:min(calc(100% - 3rem), 1400px)}
-.admin-page-inbox .wrap{width:min(calc(100% - 3rem), 1300px)}
+.admin-page .wrap{width:calc(100% - clamp(1.5rem,4vw,5rem))}
 .admin-page .masthead{background:var(--paper)}
-.admin-page .site-header{min-height:60px}
-.admin-page .site-footer-inner{padding-block:1.35rem}
-.admin-workspace{margin-block:clamp(1.3rem,2.2vw,2rem) clamp(1.65rem,3vw,2.8rem);display:grid;gap:1rem;padding-bottom:0;font-size:.91rem}
-.admin-top{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
-.admin-top p{color:var(--muted);margin-top:.4rem}
-.admin-top form{margin:0}
-.admin-top h1{font-size:clamp(2.5rem,4.1vw,3.55rem)}
-.admin-grid{display:grid;grid-template-columns:clamp(10rem,15vw,13rem) minmax(0,1fr);gap:clamp(.75rem,1.3vw,1.25rem);align-items:start}
-.admin-nav{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:.55rem;display:grid;gap:.2rem}
-.admin-nav a{display:flex;align-items:center;gap:.65rem;min-height:44px;padding:.5rem .7rem;border-radius:7px;text-decoration:none}
+.admin-page .admin-bar{min-height:52px;display:flex;gap:.65rem;align-items:center;padding-block:.35rem}
+.admin-bar .admin-live-link{margin-right:auto;font-weight:600}
+.admin-bar .theme-toggle{width:2.45rem;height:2.45rem}
+.admin-bar form{margin:0}
+.admin-workspace{--admin-index-width:clamp(17rem,24vw,24rem);margin-block:1.1rem 1.5rem;display:grid;grid-template-columns:minmax(0,1fr);gap:.65rem;padding-bottom:0;font-size:.91rem}
+.admin-workspace > h1{font-size:clamp(1.65rem,3vw,2.3rem)}
+.admin-workspace > [role="status"]{margin:0;padding:.4rem .65rem;border-radius:6px}
+.admin-nav{display:flex;gap:.4rem;padding:.25rem 0;border-bottom:1px solid var(--line)}
+.admin-nav a{display:flex;flex:none;align-items:center;gap:.65rem;min-height:2.65rem;padding:.5rem .7rem;border-radius:7px;text-decoration:none;white-space:nowrap}
+.admin-nav a:focus-visible{outline-offset:-3px}
+.admin-nav .admin-icon{width:1.05rem;height:1.05rem}
 .admin-nav a[aria-current]{background:var(--sage-soft);color:var(--heading);font-weight:600}
 .admin-nav a:hover{text-decoration:underline}
 .admin-main{min-width:0;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:clamp(1rem,3vw,2rem)}
@@ -79,7 +79,7 @@
 .admin-inbox-title h2{font-size:clamp(2.3rem,3.7vw,3.3rem)}
 .admin-inbox-title .badge{height:auto;gap:.4rem;padding:.4rem .65rem}
 .inbox-tools{grid-template-columns:minmax(0,1fr) minmax(10rem,.48fr);margin:1rem 0 0;align-items:center}
-.admin-inbox-split{display:grid;grid-template-columns:minmax(0,.87fr) minmax(0,1fr);border-top:1px solid var(--line);min-height:25rem}
+.admin-inbox-split{display:grid;grid-template-columns:var(--admin-index-width) minmax(0,1fr);border-top:1px solid var(--line);min-height:25rem}
 .inbox-index{min-width:0;padding:.75rem}
 .inbox-rows{margin:0;padding:0;list-style:none}
 .inbox-rows a{display:grid;grid-template-columns:.65rem minmax(0,1fr) auto;align-items:center;gap:.55rem;min-width:0;padding:.7rem .75rem;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}
@@ -111,21 +111,8 @@
 .admin details.admin-confirm{position:relative;border:0;padding:0}
 .admin details.admin-confirm summary{list-style:none;padding:.48rem .8rem}
 .admin-confirm form{padding:.65rem;border:1px solid var(--line);border-radius:6px;margin-top:.35rem}
-.admin-page-blog .wrap{width:calc(100% - clamp(1.5rem,4vw,5rem))}
-.admin-page .admin-bar{min-height:52px;display:flex;gap:.65rem;align-items:center;padding-block:.35rem}
-.admin-bar .admin-live-link{margin-right:auto;font-weight:600}
-.admin-bar .theme-toggle{width:2.45rem;height:2.45rem}
-.admin-bar form{margin:0}
-.admin-page-blog .admin-workspace{margin-block:1.1rem 1.5rem;gap:.65rem}
-.admin-page-blog .admin-workspace > [role="status"]{margin:0;padding:.4rem .65rem;border-radius:6px}
-.admin-page-blog .admin-top h1{font-size:clamp(1.65rem,3vw,2.3rem)}
-.admin-page-blog .admin-grid{grid-template-columns:minmax(0,1fr);gap:.85rem}
-.admin-page-blog .admin-nav{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:.4rem;padding:.25rem 0;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none}
-.admin-page-blog .admin-nav a{flex:none;white-space:nowrap;min-height:2.65rem}
-.admin-page-blog .admin-nav a:focus-visible{outline-offset:-3px}
-.admin-page-blog .admin-nav .admin-icon{width:1.05rem;height:1.05rem}
 .admin-main.admin-blog{padding:0;background:none;border:0}
-.admin-blog-split{display:grid;grid-template-columns:clamp(17rem,24vw,24rem) minmax(0,1fr);gap:clamp(.65rem,1.2vw,1.15rem);align-items:start}
+.admin-blog-split{display:grid;grid-template-columns:var(--admin-index-width) minmax(0,1fr);gap:clamp(.65rem,1.2vw,1.15rem);align-items:start}
 .admin-blog-split:has(.blog-index[hidden]){grid-template-columns:minmax(0,1fr)}
 .blog-index,.admin-editor-empty{padding:clamp(.75rem,1.2vw,1.1rem)}
 .blog-index h2,.editor-header h2,.admin-editor-empty h2{font-size:clamp(1.3rem,2vw,1.8rem)}
@@ -212,13 +199,15 @@
   .editor-actions{justify-content:flex-start}
 }
 .admin-main.admin-photos{padding:0;background:none;border:0}
-.admin-albums{border-top:1px solid var(--line);margin-top:.45rem;padding-top:.75rem;min-width:0}
-.admin-albums h2{font:600 .72rem var(--body);letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin:.25rem .65rem}
-.admin-albums a{font-size:.84rem;min-height:36px;overflow-wrap:anywhere}
-.admin-albums a .admin-icon{width:1rem}
-.admin-albums .button{width:100%}
-.admin-albums details{padding:.65rem .25rem 0;border-bottom:0}
-.admin-albums details summary{list-style:none}
+.admin-albums{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.45rem .8rem;margin-top:.85rem;padding:.55rem 0;border-block:1px solid var(--line)}
+.admin-albums nav{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;min-width:0}
+.admin-albums a{display:inline-flex;align-items:center;gap:.4rem;min-height:2.25rem;padding:.3rem .55rem;border-radius:6px;text-decoration:none;font-size:.84rem;overflow-wrap:anywhere}
+.admin-albums a[aria-current],.admin-albums a:hover{background:var(--sage-soft)}
+.admin-albums a[aria-current]{font-weight:600}
+.admin-albums a .admin-icon{width:1rem;height:1rem}
+.admin-albums .admin-count{font-size:.75rem}
+.admin .admin-albums details{padding:0;border:0;max-width:100%}
+.admin .admin-albums summary{list-style:none;min-height:2.25rem}
 .admin-albums form{margin:.55rem 0 0}
 .admin-photo-split{display:grid;gap:1rem;align-items:start}
 .photo-library,.photo-inspector{padding:clamp(.85rem,1.4vw,1.3rem);min-width:0}
@@ -273,7 +262,6 @@ body:has(.photo-inspector:modal){overflow:hidden}
 .admin details.photo-remove{padding:.65rem 0 0;border-bottom:0;margin-top:.45rem}
 @media(max-width:1100px){.photo-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:620px){.photo-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:740px){.admin-albums{flex-basis:100%}.admin-albums a{display:inline-flex}.admin-albums details .button{width:auto}}
 @media(max-width:570px){.photo-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .admin-main.admin-projects{padding:clamp(.85rem,1.5vw,1.3rem)}
 .projects-workspace h2{font-size:clamp(2rem,3vw,2.7rem)}
@@ -313,7 +301,7 @@ body:has(.photo-inspector:modal){overflow:hidden}
 .repo-footer .button{min-width:2.25rem}
 @media(max-width:1070px){.repo-tools{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){.repo-stats > div{padding:.5rem;gap:.35rem}.repo-stats > div > .admin-icon{display:none}}
-@media(max-width:980px){.admin-inbox-split{grid-template-columns:1fr;min-height:0}.inbox-detail{border-left:0;border-top:1px solid var(--line)}}
+@media(max-width:800px){.admin-inbox-split{grid-template-columns:1fr;min-height:0}.inbox-detail{border-left:0;border-top:1px solid var(--line)}}
 .admin-empty{padding:1rem 0;color:var(--muted)}
 .admin-main details summary{padding-block:.25rem}
 .admin-main details .form-status{margin-block:.5rem}
@@ -325,5 +313,5 @@ body:has(.photo-inspector:modal){overflow:hidden}
 .admin-main form textarea{resize:vertical}
 .admin.reading{max-width:480px}
 .admin.reading .page-intro{margin-bottom:0;padding-bottom:1rem}
-@media(max-width:740px){.admin-page .wrap{width:calc(100% - 2rem)}.admin-grid{grid-template-columns:minmax(0,1fr)}.admin-nav{display:flex;flex-wrap:wrap}}
+@media(max-width:480px){.admin-nav{flex-wrap:wrap;gap:.2rem}.admin-nav a{padding-inline:.5rem;gap:.35rem}}
 @media(max-width:490px){.inbox-tools{grid-template-columns:1fr}.inbox-rows a{grid-template-columns:1.25rem minmax(0,1fr)}.inbox-row-meta{grid-column:2;justify-items:start}.inbox-sender{grid-template-columns:auto minmax(0,1fr) auto}.inbox-sender time{grid-row:2;grid-column:2}.inbox-sender form{grid-row:1;grid-column:3}}

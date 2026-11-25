@@ -311,41 +311,24 @@ if (owner.verified) {
 }
 ---
 {articleListRequest ? <AdminBlogResults {items} {originalSlug} {postCount} {postStatus} {blogUrl} page={repoPage} {hasNext} /> :
-<Base title="Owner dashboard" description="Private portfolio publishing." privatePage adminBar={owner.verified && section === 'blog'} bodyClass={owner.verified ? 'admin-page admin-page-' + section : undefined}>
+<Base title="Owner dashboard" description="Private portfolio publishing." privatePage adminBar={owner.verified} bodyClass={owner.verified ? 'admin-page' : undefined}>
   <div class:list={['admin', owner.verified ? 'wrap admin-workspace' : 'reading']}>
     {owner.verified ? <>
-      <div class="admin-top">
-        <div><h1>Portfolio admin</h1>{section !== 'blog' && <p>Manage articles, photographs, inbox, and featured projects.</p>}</div>
-        {section !== 'blog' && <div class="actions">
-          <form method="post"><button name="action" value="logout" class="btn btn-outline button secondary">Sign out</button></form>
-        </div>}
-      </div>
+      <h1>Portfolio admin</h1>
+      <nav class="admin-nav" aria-label="Admin sections">
+        {Object.entries(adminSections).map(([key, label]) => <a href={'/admin?section=' + key} aria-current={key === section ? 'page' : undefined}>
+          <AdminIcon name={key} />{label}
+          {key === 'inbox' && unread > 0 && <span class="badge admin-count" aria-label={unread + ' unread'}>{unread}</span>}
+        </a>)}
+      </nav>
       {notice && !(section === 'photos' && ((canUpload && params.get('upload') === 'yes') || items.some(photo => photo.id === (editedPhotoId || params.get('photo'))))) && <p role="status">{notice}</p>}
-      <div class="admin-grid">
-        <nav class="admin-nav" aria-label="Admin sections">
-          {Object.entries(adminSections).map(([key, label]) => <a href={'/admin?section=' + key} aria-current={key === section ? 'page' : undefined}>
-            <AdminIcon name={key} />{label}
-            {key === 'inbox' && unread > 0 && <span class="badge admin-count" aria-label={unread + ' unread'}>{unread}</span>}
-          </a>)}
-          {section === 'photos' && <div class="admin-albums">
-            <h2>Albums</h2>
-            <a href={photoUrl({ albumId: '', category: '', q: '', id: null })} aria-current={!album ? 'true' : undefined}><AdminIcon name="folder" />All photos <span class="badge admin-count">{photoTotal}</span></a>
-            {albums.map(entry => <a href={photoUrl({ albumId: entry.id, category: '', q: '', id: null })} aria-current={album === entry.id ? 'true' : undefined}>
-              <AdminIcon name="folder" />{entry.name}<span class="badge admin-count">{items.filter(photo => photo.album_id === entry.id).length}</span>
-            </a>)}
-            <details><summary class="button secondary"><AdminIcon name="plus" />New album</summary>
-              <form method="post" action={photoUrl()}><label>Album name<input name="album_name" required maxlength="40" /></label><button class="button" name="action" value="create-album">Create album</button></form>
-            </details>
-          </div>}
-        </nav>
-        <div class:list={['admin-main', 'admin-' + section]}>
-          {section === 'blog' && <AdminBlog {items} {post} {originalSlug} {preview} {editing} {search} {filter} {postCount} {postStatus} {blogUrl} page={repoPage} {hasNext} />}
-          {section === 'inbox' && <AdminInbox {items} {unread} {search} {filter} {inboxReady} {hasNext} page={repoPage} selectedId={params.get('message')} />}
-          {section === 'photos' && <AdminPhotos {items} {albums} {album} {photoCategory} {photoSort} {photoTotal} {search} {canUpload} {photoUrl} {notice}
-            selectedId={editedPhotoId || params.get('photo')} uploadOpen={params.get('upload') === 'yes'} />}
-          {section === 'projects' && <AdminProjects projects={items} {repositories} {githubUnavailable} {syncedAt} {search}
-            repoFilter={filter} {repoLanguage} {repoSort} page={repoPage} {projectUrl} />}
-        </div>
+      <div class:list={['admin-main', 'admin-' + section]}>
+        {section === 'blog' && <AdminBlog {items} {post} {originalSlug} {preview} {editing} {search} {filter} {postCount} {postStatus} {blogUrl} page={repoPage} {hasNext} />}
+        {section === 'inbox' && <AdminInbox {items} {unread} {search} {filter} {inboxReady} {hasNext} page={repoPage} selectedId={params.get('message')} />}
+        {section === 'photos' && <AdminPhotos {items} {albums} {album} {photoCategory} {photoSort} {photoTotal} {search} {canUpload} {photoUrl} {notice}
+          selectedId={editedPhotoId || params.get('photo')} uploadOpen={params.get('upload') === 'yes'} />}
+        {section === 'projects' && <AdminProjects projects={items} {repositories} {githubUnavailable} {syncedAt} {search}
+          repoFilter={filter} {repoLanguage} {repoSort} page={repoPage} {projectUrl} />}
       </div>
     </> : <>
       <section class="page-intro"><h1>Portfolio admin</h1><p>Owner sign-in for portfolio publishing.</p></section>

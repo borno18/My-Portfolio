@@ -21,6 +21,8 @@ const detailUrl = id => photoUrl({ id }) + '#photo-inspector';
 const fileHelp = 'JPEG, PNG, or WebP';
 const uploadUrl = photoUrl() + '&upload=yes';
 const currentUrl = photoUrl({ id: null });
+const albumUrl = albumId => photoUrl({ albumId, category: '', q: '', id: null });
+const thumbnailSizes = '(max-width: 620px) 48vw, (max-width: 1100px) 32vw, 24vw';
 ---
 <div class="admin-photo-split">
   <section class="admin-pane photo-library" aria-labelledby="photo-library-title">
@@ -29,6 +31,17 @@ const currentUrl = photoUrl({ id: null });
       {canUpload && <a class="btn btn-primary button" data-photo-upload-link href={uploadUrl + '#photo-inspector'}><AdminIcon name="upload" />Upload photos</a>}
     </header>
     {!canUpload && <p class="form-status">Cloudinary is required to upload, replace, or remove hosted images.</p>}
+    <div class="admin-albums">
+      <nav aria-label="Photo albums">
+        <a href={albumUrl('')} aria-current={!album ? 'page' : undefined}><AdminIcon name="folder" />All photos <span class="badge admin-count">{photoTotal}</span></a>
+        {albums.map(entry => <a href={albumUrl(entry.id)} aria-current={album === entry.id ? 'page' : undefined}>
+          <AdminIcon name="folder" />{entry.name}<span class="badge admin-count">{items.filter(photo => photo.album_id === entry.id).length}</span>
+        </a>)}
+      </nav>
+      <details><summary class="button secondary"><AdminIcon name="plus" />New album</summary>
+        <form method="post" action={currentUrl}><label>Album name<input name="album_name" required maxlength="40" /></label><button class="button" name="action" value="create-album">Create album</button></form>
+      </details>
+    </div>
     <form method="get" action="/admin" class="admin-tools photo-tools" data-live-filters="photos">
       <input type="hidden" name="section" value="photos" />
       {album && <input type="hidden" name="album" value={album} />}
@@ -70,8 +83,9 @@ const currentUrl = photoUrl({ id: null });
         return <li class:list={['photo-card', { 'is-selected': selected?.id === photo.id }]} data-photo-id={photo.id}>
           <input type="checkbox" class="photo-checkbox" aria-label={'Select ' + photo.title} value={photo.id} name="id" form="photo-bulk" />
           <a class="photo-image" href={detailUrl(photo.id)} aria-label={'Edit ' + photo.title} aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}>
-            {preset ? <Image src={preset} alt={photo.alt} width={420} format="webp" loading="lazy" /> :
-              thumbnail ? <img src={thumbnail} alt={photo.alt} loading="lazy" width="420" height="320" /> : <AdminIcon name="photos" />}
+            {preset ? <Image src={preset} alt={photo.alt} widths={[420, 680, 960]} sizes={thumbnailSizes} format="webp" loading="lazy" /> :
+              thumbnail ? <img src={thumbnail} srcset={[420, 680, 960].map(width => cloudImage(photo, width) + ' ' + width + 'w').join(', ')}
+                sizes={thumbnailSizes} alt={photo.alt} loading="lazy" width="420" height="320" /> : <AdminIcon name="photos" />}
           </a>
           <div class="photo-card-copy"><strong>{photo.title}</strong>
             <span class:list={['blog-dot', photo.visible ? 'status-published' : 'status-archived']} role="img" aria-label={photo.visible ? 'Published' : 'Hidden'} title={photo.visible ? 'Published' : 'Hidden'}></span>
