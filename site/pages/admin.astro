@@ -9,6 +9,7 @@ import { clearPublicCache } from '../lib/public-cache.js';
 import AdminIcon from '../components/AdminIcon.astro';
 import AdminInbox from '../components/AdminInbox.astro';
 import AdminBlog from '../components/AdminBlog.astro';
+import AdminBlogResults from '../components/AdminBlogResults.astro';
 import AdminPhotos from '../components/AdminPhotos.astro';
 import AdminProjects from '../components/AdminProjects.astro';
 import '../admin.css';
@@ -47,6 +48,8 @@ let notice = statuses.get(params.get('saved')) || '';
 let factor;
 let qr;
 const owner = db ? await ownerSession(db) : { user: null, verified: false };
+const articleListRequest = Astro.request.method === 'GET' && section === 'blog' && params.get('view') === 'article-list';
+if (articleListRequest && !owner.verified) return new Response(null, { status: 401, headers: { 'Cache-Control': 'private, no-store' } });
 let items = [];
 let post;
 let preview;
@@ -88,7 +91,7 @@ const photoSaved = async (saved, options = {}) => {
   return Astro.redirect(photoUrl({ ...options, saved }), 303);
 };
 let unread = 0;
-let postCounts = {};
+let postCount = 0;
 const postSize = 5;
 const now = new Date().toISOString();
 const postStatus = row => row.status === 'published' && Date.parse(row.published_at) > Date.parse(now) ? 'scheduled' : row.status;
@@ -152,6 +155,9 @@ if (Astro.request.method === 'POST') {
       return Astro.redirect('/admin', 303);
     } else if (!owner.verified) {
       return new Response('Authenticator verification required', { status: 403 });
+    } else if (action === 'live-preview' && section === 'blog') {
+      const html = renderMarkdown(field(form, 'body', 65000, true), Astro.site, Astro.url);
+      return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' } });
     } else if (['preview-post', 'save-draft', 'save-archive', 'publish-post'].includes(action)) {
       originalSlug = field(form, 'original_slug', 100, true);
       const draft = parsePost(form, action === 'preview-post');
@@ -222,6 +228,7 @@ if (Astro.request.method === 'POST') {
       return new Response('Invalid operation', { status: 400 });
     }
   } catch (error) {
+    if (action === 'live-preview') return new Response(null, { status: error instanceof InputError ? 400 : 502, headers: { 'Cache-Control': 'private, no-store' } });
     Astro.response.status = error instanceof InputError ? 400 : 502;
     if (!(error instanceof InputError)) console.error('Admin operation failed', { action, code: error?.code, status: error?.http_code });
     notice = error instanceof InputError ? error.message : action === 'publish-photo'
@@ -235,7 +242,7 @@ if (owner.user && !owner.verified && !factor) {
   factor = data?.totp?.[0]?.id;
 }
 if (owner.verified) {
-  const unreadCount = db.from('portfolio_messages').select('id', { count: 'exact', head: true }).is('read_at', null).then(result => result.count ?? 0);
+  const unreadCount = articleListRequest ? 0 : db.from('portfolio_messages').select('id', { count: 'exact', head: true }).is('read_at', null).then(result => result.count ?? 0);
   let result;
   if (section === 'blog') {
     const posts = db.from('portfolio_posts');
@@ -243,13 +250,13 @@ if (owner.verified) {
     const list = postFilter(matching(posts.select('slug,title,status,published_at,updated_at,cover_path,cover_alt', { count: 'exact' })), filter)
       .order('updated_at', { ascending: false, nullsFirst: false }).order('published_at', { ascending: false, nullsFirst: false })
       .order('slug').range((repoPage - 1) * postSize, repoPage * postSize - 1);
-    const counts = blogStates.map(status => postFilter(matching(posts.select('slug', { count: 'exact', head: true })), status));
-    const [listed, ...totals] = await Promise.all([list, ...counts]);
+    const listed = await list;
     result = listed;
     items = listed.data || [];
-    postCounts = Object.fromEntries(blogStates.map((status, index) => [status, totals[index].count ?? 0]));
+    postCount = listed.count ?? 0;
     hasNext = listed.count > repoPage * postSize;
-    if (!post) {
+    if (articleListRequest) originalSlug = editing || '';
+    else if (!post) {
       originalSlug = editing === '_new' ? '' : editing || items[0]?.slug || '';
       if (originalSlug) {
         const detail = await posts.select('slug,title,description,body,status,cover_path,cover_alt,featured,updated_at,published_at').eq('slug', originalSlug).maybeSingle();
@@ -303,14 +310,15 @@ if (owner.verified) {
   unread = await unreadCount;
 }
 ---
-<Base title="Owner dashboard" description="Private portfolio publishing." privatePage bodyClass={owner.verified ? 'admin-page admin-page-' + section : undefined}>
+{articleListRequest ? <AdminBlogResults {items} {originalSlug} {postCount} {postStatus} {blogUrl} page={repoPage} {hasNext} /> :
+<Base title="Owner dashboard" description="Private portfolio publishing." privatePage adminBar={owner.verified && section === 'blog'} bodyClass={owner.verified ? 'admin-page admin-page-' + section : undefined}>
   <div class:list={['admin', owner.verified ? 'wrap admin-workspace' : 'reading']}>
     {owner.verified ? <>
       <div class="admin-top">
-        <div><h1>Portfolio admin</h1><p>Manage articles, photographs, inbox, and featured projects.</p></div>
-        <div class="actions">
+        <div><h1>Portfolio admin</h1>{section !== 'blog' && <p>Manage articles, photographs, inbox, and featured projects.</p>}</div>
+        {section !== 'blog' && <div class="actions">
           <form method="post"><button name="action" value="logout" class="btn btn-outline button secondary">Sign out</button></form>
-        </div>
+        </div>}
       </div>
       {notice && <p role="status">{notice}</p>}
       <div class="admin-grid">
@@ -331,7 +339,7 @@ if (owner.verified) {
           </div>}
         </nav>
         <div class:list={['admin-main', 'admin-' + section]}>
-          {section === 'blog' && <AdminBlog {items} {post} {originalSlug} {preview} {editing} {search} {filter} {postCounts} {postStatus} {blogUrl} page={repoPage} {hasNext} />}
+          {section === 'blog' && <AdminBlog {items} {post} {originalSlug} {preview} {editing} {search} {filter} {postCount} {postStatus} {blogUrl} page={repoPage} {hasNext} />}
           {section === 'inbox' && <AdminInbox {items} {unread} {search} {filter} {inboxReady} {hasNext} page={repoPage} selectedId={params.get('message')} />}
           {section === 'photos' && <AdminPhotos {items} {albums} {album} {photoCategory} {photoSort} {photoTotal} {search} {canUpload} {photoUrl}
             selectedId={editedPhotoId || params.get('photo')} uploadOpen={params.get('upload') === 'yes'} />}
@@ -363,7 +371,7 @@ if (owner.verified) {
     </>}
     </>}
   </div>
-</Base>
+</Base>}
 <script>
   for (const form of document.querySelectorAll<HTMLFormElement>('[data-photo-upload]')) {
     const input = form.querySelector<HTMLInputElement>('input[type=file]');

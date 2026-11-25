@@ -5,7 +5,7 @@ import '@fontsource/fraunces/500.css';
 import '../style.css';
 import Link from '../components/Link.astro';
 
-const { title, description, privatePage = false, socialImage, schema, bodyClass } = Astro.props;
+const { title, description, privatePage = false, socialImage, schema, bodyClass, adminBar = false } = Astro.props;
 const noIndex = privatePage || process.env.VERCEL_ENV === 'preview' || process.env.PORTFOLIO_NOINDEX === '1';
 const canonical = new URL(Astro.url.pathname.replace(/\/$/, '') || '/', Astro.site);
 const fullTitle = title ? `${title} | Joydip Majumdar` : 'Joydip Majumdar | Software Engineering Portfolio';
@@ -40,7 +40,8 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
   <a href="#main" class="skip">Skip to content</a>
   <span id="new-tab-description" hidden>Opens in a new tab</span>
   <header class="masthead">
-    <div class="site-header wrap">
+    <div class:list={['site-header wrap', { 'admin-bar': adminBar }]}>
+      {adminBar ? <Link class="admin-live-link" href="/">← View live site</Link> : <>
       <Link class="wordmark" href={path === '/' ? '#about' : '/'}>Joydip Majumdar<span>.</span></Link>
       <nav aria-label="Main">
         <Link href={path === '/' ? '#about' : '/#about'}>About</Link>
@@ -50,6 +51,7 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
         <Link href="/photos" aria-current={path === '/photos' ? 'page' : undefined}>Photography</Link>
         <Link href="/contact" aria-current={path === '/contact' ? 'page' : undefined}>Contact</Link>
       </nav>
+      </>}
       <button type="button" class="theme-toggle" data-theme-toggle aria-label="Dark mode" aria-pressed="false" title="Switch to dark mode" hidden>
         <svg class="theme-moon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20.9 13.35A9 9 0 0 1 10.65 3.1a9 9 0 1 0 10.25 10.25Z" />
@@ -59,10 +61,11 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
           <path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42m0-14.14-1.42 1.42m-11.3 11.3-1.42 1.42" />
         </svg>
       </button>
+      {adminBar && <form method="post" action="/admin"><button name="action" value="logout" class="button secondary">Sign out</button></form>}
     </div>
   </header>
   <main id="main" tabindex="-1"><slot /></main>
-  <footer class="site-footer">
+  {!adminBar && <footer class="site-footer">
     <div class="wrap site-footer-inner">
       <div class="site-footer-credit">
         <p>© {new Date().getFullYear()} Joydip Majumdar</p>
@@ -87,6 +90,6 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
         </Link>
       </nav>
     </div>
-  </footer>
+  </footer>}
 </body>
 </html>

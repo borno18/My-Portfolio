@@ -1,0 +1,26 @@
+---
+const { items, originalSlug, postCount, postStatus, blogUrl, page, hasNext } = Astro.props;
+const states = { published: 'Published', draft: 'Draft', scheduled: 'Scheduled', archived: 'Archived' };
+const date = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'Asia/Dhaka' }).format(new Date(value));
+---
+<div data-article-results data-count={postCount}>
+  {items.length ? <ul class="blog-rows">
+    {items.map(item => {
+      const status = postStatus(item);
+      const timestamp = status === 'scheduled' ? item.published_at : item.updated_at || item.published_at;
+      return <li><a href={blogUrl(item.slug) + '#editor-heading'} aria-current={originalSlug === item.slug ? 'true' : undefined}>
+        {item.cover_path ? <img src={'/blog-cover/' + item.cover_path} alt="" width="56" height="42" loading="lazy" /> :
+          <span class="blog-row-marker" aria-hidden="true"><span class:list={['blog-dot', 'status-' + status]}></span></span>}
+        <span class="blog-row-copy"><strong>{item.title}</strong><span class="blog-row-meta">
+          <span>{states[status]}</span>
+          {timestamp && <time datetime={timestamp}>{date(timestamp)}</time>}
+        </span></span>
+      </a></li>;
+    })}
+  </ul> : <p class="admin-empty">No articles match this view.</p>}
+  {(page > 1 || hasNext) && <nav class="admin-pagination" aria-label="Article pages">
+    {page > 1 && <a class="button secondary" data-article-page href={blogUrl(originalSlug, { page: page - 1 })}>Previous</a>}
+    <span tabindex="-1" data-page-number>Page {page}</span>
+    {hasNext && <a class="button secondary" data-article-page href={blogUrl(originalSlug, { page: page + 1 })}>Next</a>}
+  </nav>}
+</div>

@@ -1,107 +1,96 @@
 ---
-const { post, originalSlug, preview, status, actionUrl, backUrl } = Astro.props;
+import AdminIcon from './AdminIcon.astro';
+const { post, originalSlug, preview, status, actionUrl } = Astro.props;
 const schedule = post.scheduleInput ?? (status === 'scheduled' ? new Date(Date.parse(post.published_at) + 21600000).toISOString().slice(0, 16) : '');
-const edited = post.updated_at && new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' }).format(new Date(post.updated_at));
+const publishLabel = status === 'published' ? 'Update published article' : 'Publish article';
+const draftLabel = originalSlug && status !== 'draft' ? 'Move to drafts' : 'Save draft';
+const settingsOpen = Astro.response.status >= 400;
 const tools = [
-  ['Heading', '## ', ''], ['Bold', '**', '**'], ['Italic', '*', '*'], ['Code', '`', '`'],
-  ['Link', '[', '](https://)'], ['Image', '![', '](https://)'], ['Quote', '> ', ''],
-  ['List', '- ', ''], ['Numbered list', '1. ', ''],
+  ['heading', 'Heading', '## ', ''], ['bold', 'Bold', '**', '**', 'B'], ['italic', 'Italic', '*', '*', 'I'],
+  ['code', 'Inline code', '`', '`'], ['link', 'Link', '[', '](https://)', 'K'], ['image', 'Image', '![', '](https://)'],
+  ['quote', 'Quote', '> ', ''], ['list', 'Bulleted list', '- ', ''], ['ordered', 'Numbered list', '1. ', ''],
 ];
 ---
 <section class="admin-pane admin-editor" aria-labelledby="editor-heading">
   <header class="admin-section-head editor-header">
-    <div><a href={backUrl} aria-label="Back to posts">←</a><h2 id="editor-heading">{originalSlug ? 'Edit article' : 'New article'}</h2></div>
     <div>
-      {edited && <time class="admin-muted" datetime={post.updated_at}>Last edited {edited}</time>}
-      {originalSlug && <details class="editor-delete">
-        <summary class="button secondary" aria-label="Article options">⋯</summary>
-        <form method="post" action={actionUrl}>
-          <input type="hidden" name="slug" value={originalSlug} />
-          <label><span><input type="checkbox" name="confirm" value="yes" required /> Permanently delete this article</span></label>
-          <button class="button secondary" name="action" value="delete-post">Delete article</button>
-        </form>
-      </details>}
+      <button type="button" class="button secondary editor-panel-toggle" data-toggle-list aria-controls="blog-index" aria-expanded="true" aria-label="Hide article list" title="Hide article list" hidden><AdminIcon name="panel" /></button>
+      <a href="#blog-admin-title" class="editor-mobile-back" aria-label="Back to posts">←</a>
+      <h2 id="editor-heading" tabindex="-1">{originalSlug ? 'Edit article' : 'New article'}</h2>
+      {originalSlug && <span class="editor-status"><span class:list={['blog-dot', 'status-' + status]} aria-hidden="true"></span>{status}</span>}
     </div>
+    {originalSlug && <details class="editor-delete">
+      <summary class="button secondary" aria-label="Article options">⋯</summary>
+      <form method="post" action={actionUrl}>
+        <input type="hidden" name="slug" value={originalSlug} />
+        <label><span><input type="checkbox" name="confirm" value="yes" required /> Permanently delete this article</span></label>
+        <button class="button secondary" name="action" value="delete-post">Delete article</button>
+      </form>
+    </details>}
   </header>
-  <form method="post" action={actionUrl} enctype="multipart/form-data" class="editor-form">
+  <form method="post" action={actionUrl} enctype="multipart/form-data" class="editor-form" data-settings-open={settingsOpen ? 'yes' : 'no'}>
+    {/* Require an explicit publishing action when Enter is pressed in a text field. */}
+    <button type="submit" disabled hidden></button>
     <input type="hidden" name="original_slug" value={originalSlug} />
-    <div class="editor-title-fields">
-      <label>Title<input name="title" required maxlength="160" value={post.title} /></label>
+    <label class="editor-title">Title<input name="title" required maxlength="160" value={post.title} placeholder="Article title" /></label>
+    <div class="editor-view-switch" aria-label="Editor view" data-editor-views hidden>
+      <button type="button" aria-pressed="true" aria-controls="editor-writing-panel" data-editor-view="write">Write</button>
+      <button type="button" aria-pressed="false" aria-controls="editor-settings" data-editor-view="settings">Settings / SEO</button>
+    </div>
+    <div class="editor-settings" id="editor-settings">
       <label>URL slug<input name="slug" required maxlength="100" pattern="[a-z0-9]+(-[a-z0-9]+)*" value={post.slug} readonly={Boolean(originalSlug)} /></label>
-    </div>
-    <label>Summary<input name="description" required maxlength="300" value={post.description} /></label>
-    <div class="editor-publish-fields">
-      <div><strong>Status</strong><p class="editor-status">{status}</p></div>
-      <label>Publish at (Dhaka time)<input name="publish_at" type="datetime-local" value={schedule} /></label>
-      <label class="editor-feature"><span><input class="toggle" type="checkbox" name="featured" value="yes" checked={post.featured} /> Featured</span></label>
-    </div>
-    <fieldset class:list={['article-cover-fields', { 'has-cover': post.cover_path }]}>
-      <legend>Cover image</legend>
-      <div class="editor-cover-grid">
-        {post.cover_path && <img src={'/blog-cover/' + post.cover_path} alt={post.cover_alt} width="240" />}
-        <div class="editor-cover-options">
-          <div><label>{post.cover_path ? 'Replace cover' : 'Upload cover'}
-              <input type="file" name="cover" accept="image/jpeg,image/png,image/webp" aria-describedby="cover-format" />
-            </label>
-            <p id="cover-format" class="admin-muted">JPG, PNG, or WebP under 3.5 MB.</p>
-          </div>
-          <label>Cover alt text<input name="cover_alt" maxlength="250" value={post.cover_alt} /></label>
-          {post.cover_path && <label><span><input type="checkbox" name="remove_cover" value="yes" checked={post.removeCover} /> Remove current cover</span></label>}
-        </div>
+      <label>Summary<textarea name="description" required maxlength="300" rows="3">{post.description}</textarea></label>
+      <div class="editor-publish-fields">
+        <label>Publish at (Dhaka time)<input name="publish_at" type="datetime-local" value={schedule} /></label>
+        <label class="editor-feature"><span><input class="toggle" type="checkbox" name="featured" value="yes" checked={post.featured} /> Featured</span></label>
       </div>
-    </fieldset>
-    <div class="editor-content">
-      <label for="editor-body">Content <span class="admin-muted">Markdown</span></label>
+      <fieldset class="article-cover-fields">
+        <legend>Cover image</legend>
+        <div class="editor-cover-grid">
+          <label class="editor-dropzone" data-cover-drop>
+            <input class="editor-file" type="file" name="cover" accept="image/jpeg,image/png,image/webp" aria-label="Choose or replace article cover" aria-describedby="cover-format" />
+            <img data-cover-thumbnail src={post.cover_path ? '/blog-cover/' + post.cover_path : undefined} alt="" width="240" hidden={!post.cover_path || post.removeCover} />
+            <span class="editor-drop-copy"><AdminIcon name="upload" /><strong data-cover-label>{post.cover_path && !post.removeCover ? 'Replace cover' : 'Choose cover'}</strong><small data-drop-instruction hidden>or drop an image</small></span>
+          </label>
+          <div class="editor-cover-options">
+            <label>Cover alt text<input name="cover_alt" maxlength="250" value={post.cover_alt} /></label>
+            <p id="cover-format" class="admin-muted">JPG, PNG, or WebP under 3.5 MB.</p>
+            <p class="editor-cover-feedback" aria-live="polite" data-cover-feedback></p>
+            <button class="button secondary" type="button" data-remove-cover hidden>Remove cover</button>
+            {post.cover_path && <label data-cover-fallback><span><input type="checkbox" name="remove_cover" value="yes" checked={post.removeCover} /> Remove saved cover</span></label>}
+          </div>
+        </div>
+      </fieldset>
+    </div>
+    <div class="editor-content" id="editor-writing-panel">
       <div class="editor-writing">
         <div class="editor-toolbar" aria-label="Markdown formatting" hidden data-editor-tools>
-          {tools.map(([label, before, after]) => <button type="button" class="button secondary" data-before={before} data-after={after}>{label}</button>)}
+          <div class="editor-formatting">
+            {tools.map(([icon, label, before, after, shortcut]) => <button type="button" class="button secondary" data-before={before} data-after={after} data-shortcut={shortcut}
+              aria-label={label} aria-keyshortcuts={shortcut ? 'Control+' + shortcut + ' Meta+' + shortcut : undefined} title={label + (shortcut ? ' (Ctrl/⌘+' + shortcut + ')' : '')}><AdminIcon name={icon} /></button>)}
+          </div>
+          <button type="button" class="button secondary editor-preview-toggle" data-live-preview aria-pressed="false" aria-controls="editor-preview"><AdminIcon name="eye" />Preview</button>
         </div>
-        <textarea id="editor-body" name="body" required maxlength="65000" rows="6">{post.body}</textarea>
+        <div class="editor-writing-panes">
+          <textarea id="editor-body" aria-label="Article Markdown" name="body" required maxlength="65000" rows="16" placeholder="Write in Markdown…">{post.body}</textarea>
+          <section id="editor-preview" class="editor-live-preview" aria-label="Markdown preview" tabindex="0" hidden>
+            <p class="admin-muted" data-preview-feedback aria-live="polite"></p>
+            <div class="article article-prose" data-preview-content></div>
+          </section>
+        </div>
       </div>
     </div>
     <div class="actions editor-actions">
       {originalSlug && status !== 'archived' && <button class="button secondary editor-archive" name="action" value="save-archive">Archive article</button>}
-      <button class="btn btn-outline button secondary" name="action" value="save-draft">Save draft</button>
-      <button class="btn btn-outline button secondary" name="action" value="preview-post" formnovalidate>Preview</button>
-      <button class="btn btn-primary button" name="action" value="publish-post" data-publish-button>{schedule ? 'Schedule publication' : status === 'published' ? 'Update published article' : 'Publish article'}</button>
+      <button class="btn btn-outline button secondary" name="action" value="save-draft">{draftLabel}</button>
+      <noscript><button class="button secondary" name="action" value="preview-post" formnovalidate>Preview</button></noscript>
+      <button class="btn btn-primary button" name="action" value="publish-post" data-publish-button data-publish-label={publishLabel}>{schedule ? 'Schedule publication' : publishLabel}</button>
     </div>
   </form>
-  {preview && <div class="admin-preview"><h3>Markdown preview</h3><div class="article article-prose" set:html={preview} /><p class="admin-muted">Reselect any cover file before saving.</p></div>}
+  {preview !== undefined && <div class="admin-preview"><h3>Markdown preview</h3><div class="article article-prose" set:html={preview} /><p class="admin-muted">Reselect any cover file before saving.</p></div>}
 </section>
 <script>
+  import { setupArticleEditor } from '../lib/admin-editor';
   const editor = document.querySelector<HTMLFormElement>('.editor-form');
-  const toolbar = editor?.querySelector<HTMLElement>('[data-editor-tools]');
-  const body = editor?.querySelector<HTMLTextAreaElement>('#editor-body');
-  if (toolbar && body) {
-    toolbar.hidden = false;
-    for (const button of toolbar.querySelectorAll('button')) {
-      button.addEventListener('click', () => {
-        const start = body.selectionStart;
-        const end = body.selectionEnd;
-        const before = button.dataset.before || '';
-        const after = button.dataset.after || '';
-        const selection = body.value.slice(start, end);
-        body.setRangeText(before + selection + after, start, end, 'end');
-        body.focus();
-        body.setSelectionRange(start + before.length, start + before.length + selection.length);
-      });
-    }
-  }
-  const schedule = editor?.querySelector<HTMLInputElement>('[name=publish_at]');
-  const publish = editor?.querySelector<HTMLButtonElement>('[data-publish-button]');
-  if (schedule && publish) {
-    const publishLabel = publish.textContent === 'Update published article' ? publish.textContent : 'Publish article';
-    schedule.addEventListener('input', () => {
-      publish.textContent = schedule.value ? 'Schedule publication' : publishLabel;
-    });
-  }
-  const title = editor?.querySelector<HTMLInputElement>('[name=title]');
-  const slug = editor?.querySelector<HTMLInputElement>('[name=slug]');
-  if (title && slug && !slug.readOnly) {
-    let automatic = !slug.value;
-    slug.addEventListener('input', () => { automatic = !slug.value; });
-    title.addEventListener('input', () => {
-      if (automatic) slug.value = title.value.normalize('NFKD').toLowerCase().replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').slice(0, 100).replace(/^-|-$/g, '');
-    });
-  }
+  if (editor) setupArticleEditor(editor);
 </script>

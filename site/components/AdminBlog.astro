@@ -1,48 +1,92 @@
 ---
 import AdminIcon from './AdminIcon.astro';
+import AdminBlogResults from './AdminBlogResults.astro';
 import AdminPostEditor from './AdminPostEditor.astro';
-const { items, post, originalSlug, preview, editing, search, filter, postCounts, postStatus, blogUrl, page, hasNext } = Astro.props;
+const { items, post, originalSlug, preview, editing, search, filter, postCount, postStatus, blogUrl, page, hasNext } = Astro.props;
 const states = { published: 'Published', draft: 'Drafts', scheduled: 'Scheduled', archived: 'Archived' };
-const total = Object.values(postCounts).reduce((sum, count) => sum + count, 0);
-const date = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'Asia/Dhaka' }).format(new Date(value));
+const currentEdit = post ? originalSlug || '_new' : editing;
 ---
 <div class="admin-blog-split">
-  <section class="admin-pane blog-index" aria-labelledby="blog-admin-title">
+  <section class="admin-pane blog-index" id="blog-index" aria-labelledby="blog-admin-title">
     <div class="admin-section-head">
-      <h2 id="blog-admin-title">Blog posts <span class="badge admin-count">{total}</span></h2>
-      <a class="btn btn-primary button admin-sage-action" href={blogUrl('_new') + '#editor-heading'}><AdminIcon name="plus" />New article</a>
+      <h2 id="blog-admin-title" tabindex="-1">Blog posts <span class="badge admin-count" data-article-count>{postCount}</span></h2>
+      <a class="btn btn-primary button" href={blogUrl('_new') + '#editor-heading'}><AdminIcon name="plus" />New article</a>
     </div>
-    <form method="get" class="blog-search">
+    <form method="get" action="/admin" class="blog-search">
       <input type="hidden" name="section" value="blog" />
-      {filter && <input type="hidden" name="status" value={filter} />}
+      {currentEdit && <input type="hidden" name="edit" value={currentEdit} />}
       <label class="admin-search"><AdminIcon name="search" /><input name="q" aria-label="Search articles" placeholder="Search articles…" type="search" maxlength="100" value={search} /></label>
-      <button class="btn btn-outline button secondary">Search</button>
+      <select name="status" aria-label="Article status">
+        <option value="">All statuses</option>
+        {Object.entries(states).map(([status, label]) => <option value={status} selected={filter === status}>{label}</option>)}
+      </select>
+      <noscript><button class="button secondary">Apply filters</button></noscript>
     </form>
-    <nav class="admin-chips" aria-label="Article status">
-      {Object.entries({ '': 'All', ...states }).map(([status, label]) => (
-        <a href={blogUrl(null, { status, page: 1 })} aria-current={filter === status ? 'true' : undefined}>{label} ({status ? postCounts[status] : total})</a>
-      ))}
-    </nav>
-    {items.length ? <ul class="blog-rows">
-      {items.map(item => {
-        const status = postStatus(item);
-        const timestamp = status === 'scheduled' ? item.published_at : item.updated_at || item.published_at;
-        return <li><a href={blogUrl(item.slug) + '#editor-heading'} aria-current={originalSlug === item.slug ? 'true' : undefined}>
-          {item.cover_path ? <img src={'/blog-cover/' + item.cover_path} alt="" width="76" height="54" loading="lazy" /> :
-            <span class="blog-row-placeholder"><AdminIcon name="blog" /></span>}
-          <span class="blog-row-copy"><strong>{item.title}</strong><span class="blog-row-meta">
-            <span class:list={['admin-status', 'status-' + status]}>{status === 'draft' ? 'Draft' : states[status]}</span>
-            {timestamp && <time datetime={timestamp}>{date(timestamp)}</time>}
-          </span></span>
-        </a></li>;
-      })}
-    </ul> : <p class="admin-empty">No articles match this view.</p>}
-    {(page > 1 || hasNext) && <nav class="admin-pagination" aria-label="Article pages">
-      {page > 1 && <a class="button secondary" href={blogUrl(null, { page: page - 1 })}>Previous</a>}
-      <span>Page {page}</span>
-      {hasNext && <a class="button secondary" href={blogUrl(null, { page: page + 1 })}>Next</a>}
-    </nav>}
+    <p class="blog-list-feedback" aria-live="polite" data-article-feedback></p>
+    <AdminBlogResults {items} originalSlug={currentEdit} {postCount} {postStatus} {blogUrl} {page} {hasNext} />
   </section>
-  {post ? <AdminPostEditor {post} {originalSlug} {preview} status={postStatus(post)} actionUrl={blogUrl(originalSlug || '_new')} backUrl={blogUrl(null) + '#blog-admin-title'} /> :
+  {post ? <AdminPostEditor {post} {originalSlug} {preview} status={postStatus(post)} actionUrl={blogUrl(originalSlug || '_new')} /> :
     <section class="admin-pane admin-editor-empty"><h2>{editing ? 'Article unavailable' : 'No article selected'}</h2><p class="admin-muted">{editing ? 'Choose an article from the list.' : 'Create an article to start writing.'}</p></section>}
 </div>
+<script>
+  const layout = document.querySelector<HTMLElement>('.admin-blog-split');
+  const listing = layout?.querySelector<HTMLElement>('#blog-index');
+  const form = listing?.querySelector<HTMLFormElement>('.blog-search');
+  const focus = layout?.querySelector<HTMLButtonElement>('[data-toggle-list]');
+  if (focus && listing) {
+    focus.hidden = false;
+    focus.addEventListener('click', () => {
+      listing.hidden = !listing.hidden;
+      focus.setAttribute('aria-expanded', String(!listing.hidden));
+      focus.title = focus.ariaLabel = listing.hidden ? 'Show article list' : 'Hide article list';
+    });
+  }
+  if (listing && form) {
+    const search = form.elements.namedItem('q') as HTMLInputElement;
+    const filter = form.elements.namedItem('status') as HTMLSelectElement;
+    const feedback = listing.querySelector<HTMLElement>('[data-article-feedback]')!;
+    const count = listing.querySelector<HTMLElement>('[data-article-count]')!;
+    let pending: AbortController | undefined;
+    let timer: ReturnType<typeof setTimeout>;
+    const refresh = async (page?: string) => {
+      const controller = new AbortController();
+      pending = controller;
+      const url = new URL(form.action);
+      for (const [name, value] of new FormData(form)) url.searchParams.set(name, String(value));
+      if (page) url.searchParams.set('page', page);
+      url.searchParams.set('view', 'article-list');
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error();
+        const document = new DOMParser().parseFromString(await response.text(), 'text/html');
+        const results = document.querySelector<HTMLElement>('[data-article-results]');
+        if (controller.signal.aborted) return;
+        if (!results) throw new Error();
+        listing.querySelector('[data-article-results]')?.replaceWith(results);
+        count.textContent = results.dataset.count || '0';
+        feedback.textContent = count.textContent === '1' ? '1 matching article' : count.textContent + ' matching articles';
+        feedback.classList.remove('is-error');
+        if (page) results.querySelector<HTMLElement>('[data-page-number]')?.focus();
+      } catch {
+        if (controller.signal.aborted) return;
+        feedback.textContent = 'Could not refresh articles. Try searching again.';
+        feedback.classList.add('is-error');
+      }
+    };
+    const cancel = () => { clearTimeout(timer); pending?.abort(); };
+    search.addEventListener('input', () => {
+      cancel();
+      timer = setTimeout(() => void refresh(), 250);
+    });
+    const apply = () => { cancel(); void refresh(); };
+    filter.addEventListener('change', apply);
+    form.addEventListener('submit', event => { event.preventDefault(); apply(); });
+    listing.addEventListener('click', event => {
+      const link = (event.target as Element).closest<HTMLAnchorElement>('[data-article-page]');
+      if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      cancel();
+      void refresh(new URL(link.href).searchParams.get('page') || '1');
+    });
+  }
+</script>
