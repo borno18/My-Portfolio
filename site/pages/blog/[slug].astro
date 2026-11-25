@@ -5,15 +5,23 @@ import Link from '../../components/Link.astro';
 import EditorialMedia from '../../components/EditorialMedia.astro';
 import ArticleShare from '../../components/ArticleShare.astro';
 import { editorialDetails } from '../../lib/editorial.js';
-import { getPosts, renderMarkdown } from '../../lib/content.js';
+import { getPost, getPosts, renderMarkdown } from '../../lib/content.js';
 
 Astro.response.headers.set('Cache-Control', 'no-store');
-const posts = await getPosts();
-const post = posts.find(item => item.slug === Astro.params.slug);
+const { slug } = Astro.params;
+if (!slug || slug.length > 100 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+  return Astro.rewrite('/404');
+}
+const [post, related] = await Promise.all([
+  getPost(slug),
+  getPosts({ excludeSlug: slug, limit: 2, columns: 'slug,title' }).catch(error => {
+    console.error(error);
+    return [];
+  }),
+]);
 if (!post) {
   return Astro.rewrite('/404');
 }
-const related = posts.filter(item => item.slug !== post.slug).slice(0, 2);
 const detail = editorialDetails(post);
 const articleUrl = new URL('/blog/' + post.slug, Astro.site).href;
 const schema = post.published_at ? { '@context': 'https://schema.org', '@type': 'BlogPosting', headline: post.title, description: post.description, datePublished: post.published_at, url: articleUrl, author: { '@type': 'Person', name: 'Joydip Majumdar', url: Astro.site.href } } : undefined;

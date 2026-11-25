@@ -3,6 +3,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 import { cloudImage, renderMarkdown } from '../site/lib/content.js';
 import { projectDisplay } from '../site/lib/work.js';
+import { publishAt } from '../site/lib/admin.js';
 
 const db = new PGlite();
 try {
@@ -50,7 +51,9 @@ try {
   const coverId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa.jpg';
   await db.query("insert into storage.objects values ('article-covers', $1),('article-covers', $2)", ['draft/' + coverId, 'public/' + coverId]);
   await db.query("update portfolio_posts set cover_path = slug || '/' || $1, cover_alt = 'Test cover' where slug in ('draft','public')", [coverId]);
+  await db.query("update portfolio_posts set status = 'published', published_at = now() + interval '1 hour' where slug = 'draft'");
   await db.exec('set role anon');
+  assert.deepEqual(await posts(), ['public']);
   assert.deepEqual((await db.query('select name from storage.objects')).rows, [{ name: 'public/' + coverId }]);
   await assert.rejects(() => db.query("delete from storage.objects"), /permission denied/i);
   await db.exec("set role authenticated; set request.jwt.claims = '{\"aal\":\"aal1\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
@@ -65,13 +68,16 @@ try {
 
   await db.exec("set role authenticated; set request.jwt.claims = '{\"aal\":\"aal1\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
   assert.equal((await db.query("update portfolio_messages set read_at = now() returning id")).rows.length, 0);
+  assert.equal((await db.query("update portfolio_messages set starred = true returning id")).rows.length, 0);
   await assert.rejects(() => db.query("insert into portfolio_project_settings values ('attendance-app',true,1)"), /row-level security/i);
   await db.exec("set request.jwt.claims = '{\"aal\":\"aal2\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
   assert.equal((await db.query("update portfolio_messages set read_at = now() returning id")).rows.length, 6);
+  assert.equal((await db.query("update portfolio_messages set starred = true where search_text ilike '%Via contact form%' returning id")).rows.length, 1);
   await assert.rejects(() => db.query("update portfolio_messages set message = 'changed'"), /permission denied/i);
   await db.query("insert into portfolio_project_settings values ('attendance-app',false,0),('pookie-prep',true,1)");
   await db.query("insert into portfolio_project_settings values ('github-123',true,2,'{\"name\":\"Project-One\",\"description\":\"Demo\",\"language\":\"Dart\"}')");
   await db.query("update portfolio_posts set status = 'draft', published_at = null where slug = 'offline-attendance'");
+  await db.query("update portfolio_posts set status = 'archived', published_at = null where slug = 'draft'");
   await db.query("delete from portfolio_posts where slug = 'public'");
   await db.exec('set role anon');
   assert.deepEqual(await posts(), []);
@@ -87,9 +93,21 @@ try {
   assert.equal((await db.query("select count(*)::int as total from portfolio_photos")).rows[0].total, 5);
   assert.equal((await db.query("select title from portfolio_photos " + preset)).rows[0].title, 'A Dream Afternoon');
   await assert.rejects(() => db.query("delete from portfolio_photos " + preset), /permission denied/i);
+  await assert.rejects(() => db.query("select * from portfolio_photo_albums"), /permission denied/i);
   await db.exec("set role authenticated; set request.jwt.claims = '{\"aal\":\"aal1\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
   assert.equal((await db.query("update portfolio_photos set title = 'Denied' " + preset + " returning id")).rows.length, 0);
+  assert.equal((await db.query("select portfolio_reorder_photos('{}') as changed")).rows[0].changed, false);
   await db.exec("set request.jwt.claims = '{\"aal\":\"aal2\",\"app_metadata\":{\"portfolio_role\":\"owner\"}}'");
+  const reorder = "select portfolio_reorder_photos(array(select id from portfolio_photos order by display_order desc, id)) as changed";
+  const order = (await db.query("select id from portfolio_photos order by display_order desc, id")).rows.map(row => row.id);
+  assert.equal((await db.query("select portfolio_reorder_photos('{}') as changed")).rows[0].changed, false);
+  assert.equal((await db.query(reorder)).rows[0].changed, true);
+  assert.deepEqual((await db.query("select id from portfolio_photos order by display_order")).rows.map(row => row.id), order);
+  await db.query("update portfolio_photos set visible = false " + preset);
+  await db.exec('set role anon');
+  assert.equal((await db.query("select title from portfolio_photos " + preset)).rows.length, 0);
+  await db.exec('set role authenticated');
+  await db.query("update portfolio_photos set visible = true " + preset);
   const assetId = 'portfolio/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
   assert.equal((await db.query("update portfolio_photos set title = 'Replaced', public_id = $1, cloud_name = 'example', version = 1, width = 32, height = 32 " + preset + " returning id", [assetId])).rows.length, 1);
   await db.exec('set role anon');
@@ -104,5 +122,7 @@ try {
   assert.match(renderMarkdown('[New tab](https://example.test:8443/doc)'), /target="_blank" rel="noopener noreferrer"/);
   const internal = '[Projects](/work/demo) [About](https://portfolio.example/#about) [Hash](#details) [Email](mailto:preview@example.test)';
   assert.doesNotMatch(renderMarkdown(internal, 'https://portfolio.example'), /target="_blank"/);
-  console.log('Verified visibility, MFA policy, contact limits, and safe Markdown.');
+  assert.equal(publishAt('2026-12-01T09:30', Date.parse('2026-12-01T03:00Z')), '2026-12-01T03:30:00.000Z');
+  assert.throws(() => publishAt('2026-02-30T10:00', 0), /valid publication date/);
+  console.log('Verified scheduled and archived content, cover privacy, photo visibility and ordering, MFA, and inbox controls.');
 } finally { await db.close(); }

@@ -6,26 +6,29 @@ import Link from '../components/Link.astro';
 import MediaLightbox from '../components/MediaLightbox.astro';
 import { galleryPhotos } from '../lib/photos.js';
 import { cloudImage } from '../lib/content.js';
-Astro.response.headers.set('Cache-Control', 'no-store');
+import { cachePublic, publicCacheTags } from '../lib/public-cache.js';
 const photos = await Promise.all((await galleryPhotos()).map(async photo => ({
   ...photo,
   large: photo.src ? (await getImage({ src: photo.src, width: 1600, format: 'webp' })).src : cloudImage(photo, 2000),
 })));
 const categories = [...new Set(photos.map(photo => photo.category))];
+const thumbnailSizes = '(max-width: 900px) 46vw, (max-width: 1250px) 31vw, 376px';
+cachePublic(Astro.response.headers, publicCacheTags.photos);
 ---
 <Base title="Photography" description="Fujifilm street, festival, and architectural photography from Sylhet, Bangladesh, by Joydip Majumdar.">
   <section class="wrap page-intro"><h1>Photography</h1><p>Street scenes, architecture, and festivals from Sylhet and everyday life.</p></section>
   <div class="wrap" data-media-gallery>
     {!photos.length && <p>No photographs are currently published.</p>}
     {photos.length > 0 && <div class="actions filters" hidden aria-label="Filter photographs">
-      {['All', ...categories].map((category, index) => <button class="button secondary" type="button" data-filter={category} aria-pressed={index === 0 ? 'true' : 'false'}>{category}</button>)}
+      <button class="button secondary" type="button" data-filter="" aria-pressed="true">All photos</button>
+      {categories.map(category => <button class="button secondary" type="button" data-filter={category} aria-pressed="false">{category}</button>)}
     </div>}
     <div class="gallery">
-      {photos.map(photo => (
+      {photos.map((photo, index) => (
         <figure data-category={photo.category}>
           <Link href={photo.large} describeNewTab={false} data-media-image data-title={photo.title} data-alt={photo.alt} data-caption={photo.caption}>
-            {photo.src ? <Image src={photo.src} alt={photo.alt} width={900} widths={[360, 600, 900]} sizes="(max-width: 860px) 48vw, 31vw" format="webp" /> :
-              <img src={cloudImage(photo, 960)} srcset={[360, 600, 960].map(width => cloudImage(photo, width) + ' ' + width + 'w').join(', ')} sizes="(max-width: 860px) 48vw, 31vw" width={photo.width} height={photo.height} loading="lazy" decoding="async" alt={photo.alt} />}
+            {photo.src ? <Image src={photo.src} alt={photo.alt} width={900} widths={[360, 600, 900]} sizes={thumbnailSizes} format="webp" loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : undefined} /> :
+              <img src={cloudImage(photo, 960)} srcset={[360, 600, 960].map(width => cloudImage(photo, width) + ' ' + width + 'w').join(', ')} sizes={thumbnailSizes} width={photo.width} height={photo.height} loading={index === 0 ? 'eager' : 'lazy'} fetchpriority={index === 0 ? 'high' : undefined} decoding="async" alt={photo.alt} />}
           </Link>
           <figcaption><strong>{photo.title}</strong><small>{photo.category}{photo.bundled_key && photo.caption && ' · ' + photo.caption}</small></figcaption>
         </figure>
@@ -48,7 +51,7 @@ const categories = [...new Set(photos.map(photo => photo.category))];
     buttons.forEach(button => button.addEventListener('click', () => {
       buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
       photos.forEach(figure => {
-        figure.hidden = button.dataset.filter !== 'All' && figure.dataset.category !== button.dataset.filter;
+        figure.hidden = Boolean(button.dataset.filter) && figure.dataset.category !== button.dataset.filter;
       });
     }));
   }

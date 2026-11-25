@@ -64,12 +64,28 @@ export function publicDatabase() {
   }) : null;
 }
 
-export async function getPosts() {
+const postColumns = 'slug,title,description,body,published_at,cover_path,cover_alt';
+
+export async function getPosts({ limit, excludeSlug, columns = postColumns, featuredFirst = false } = {}) {
   const db = publicDatabase();
-  if (!db) return basePosts;
-  const { data, error } = await db.from('portfolio_posts')
-    .select('slug,title,description,body,published_at,cover_path,cover_alt').eq('status', 'published').order('published_at', { ascending: false });
+  if (!db) return basePosts.filter(post => post.slug !== excludeSlug).slice(0, limit ?? basePosts.length);
+  let query = db.from('portfolio_posts').select(columns).eq('status', 'published');
+  if (featuredFirst) query = query.order('featured', { ascending: false });
+  query = query
+    .order('published_at', { ascending: false }).order('slug');
+  if (excludeSlug) query = query.neq('slug', excludeSlug);
+  if (limit !== undefined) query = query.limit(limit);
+  const { data, error } = await query;
   if (error) throw new Error('Could not load the published blog from Supabase');
+  return data;
+}
+
+export async function getPost(slug) {
+  const db = publicDatabase();
+  if (!db) return basePosts.find(post => post.slug === slug) ?? null;
+  const { data, error } = await db.from('portfolio_posts').select(postColumns)
+    .eq('status', 'published').eq('slug', slug).maybeSingle();
+  if (error) throw new Error('Could not load the published article from Supabase');
   return data;
 }
 
@@ -85,7 +101,7 @@ export async function getPublishedPhotos() {
   const db = publicDatabase();
   if (!db) return null;
   const { data, error } = await db.from('portfolio_photos')
-    .select('bundled_key,title,category,caption,alt,public_id,version,cloud_name,width,height').order('display_order').order('created_at', { ascending: false });
+    .select('bundled_key,title,category,caption,alt,public_id,version,cloud_name,width,height,featured').eq('visible', true).order('display_order').order('created_at', { ascending: false });
   if (error) throw new Error('Could not build the published gallery from Supabase');
   return data;
 }

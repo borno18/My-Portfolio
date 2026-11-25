@@ -106,8 +106,9 @@ const { id } = Astro.props;
     });
     dialog.addEventListener('keydown', event => {
       if (stage.hasAttribute('data-zoomed') || available().length < 2) return;
-      if (event.key === 'ArrowLeft') show(active - 1);
-      if (event.key === 'ArrowRight') show(active + 1);
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      show(active + (event.key === 'ArrowLeft' ? -1 : 1));
     });
     dialog.addEventListener('close', () => trigger?.focus());
   }

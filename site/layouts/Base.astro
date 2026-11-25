@@ -1,12 +1,11 @@
 ---
 import '@fontsource/dm-sans/400.css';
-import '@fontsource/dm-sans/500.css';
 import '@fontsource/dm-sans/600.css';
 import '@fontsource/fraunces/500.css';
 import '../style.css';
 import Link from '../components/Link.astro';
 
-const { title, description, privatePage = false, socialImage, schema } = Astro.props;
+const { title, description, privatePage = false, socialImage, schema, bodyClass } = Astro.props;
 const noIndex = privatePage || process.env.VERCEL_ENV === 'preview' || process.env.PORTFOLIO_NOINDEX === '1';
 const canonical = new URL(Astro.url.pathname.replace(/\/$/, '') || '/', Astro.site);
 const fullTitle = title ? `${title} | Joydip Majumdar` : 'Joydip Majumdar | Software Engineering Portfolio';
@@ -37,7 +36,7 @@ const path = Astro.url.pathname.replace(/\/$/, '') || '/';
   <script is:inline src="/theme.js"></script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
 </head>
-<body>
+<body class={bodyClass}>
   <a href="#main" class="skip">Skip to content</a>
   <span id="new-tab-description" hidden>Opens in a new tab</span>
   <header class="masthead">

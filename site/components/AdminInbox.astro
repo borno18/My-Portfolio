@@ -1,0 +1,88 @@
+---
+import AdminIcon from './AdminIcon.astro';
+const { items, unread, search, filter, inboxReady, hasNext, page, selectedId } = Astro.props;
+const selected = items.find(item => item.id === selectedId) || items[0];
+const summary = item => item.message.split(/\r?\n/).find(line => line.trim())?.trim().slice(0, 100) || 'Contact message';
+const date = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' }).format(new Date(value));
+const url = (currentPage, id) => {
+  const query = new URLSearchParams({ section: 'inbox' });
+  if (search) query.set('q', search);
+  if (filter) query.set('status', filter);
+  if (currentPage > 1) query.set('page', String(currentPage));
+  if (id) query.set('message', id);
+  return '/admin?' + query;
+};
+const actionUrl = selected && url(page, selected.id);
+const subject = selected && summary(selected);
+const reply = selected && 'mailto:' + encodeURIComponent(selected.email).replace('%40', '@') + '?subject=' + encodeURIComponent('Re: ' + subject);
+const forward = selected && 'mailto:?subject=' + encodeURIComponent('Fwd: ' + subject) + '&body=' + encodeURIComponent(
+  'Forwarded message\r\nFrom: ' + selected.name + ' <' + selected.email + '>\r\nDate: ' + date(selected.created_at) + '\r\n\r\n' + selected.message
+);
+---
+<section aria-labelledby="inbox-title">
+  <header class="admin-inbox-head">
+    <div class="admin-inbox-title">
+      <h2 id="inbox-title">Inbox{unread ? ' (' + unread + ' new)' : ''}</h2>
+      {unread > 0 && <span class="badge admin-count"><AdminIcon name="inbox" /> {unread} new {unread === 1 ? 'message' : 'messages'}</span>}
+    </div>
+    <p class="admin-muted">Manage messages and inquiries from your portfolio.</p>
+    {!inboxReady && <p class="form-status">The public contact form is temporarily unavailable.</p>}
+    <form method="get" class="admin-tools inbox-tools">
+      <input type="hidden" name="section" value="inbox" />
+      <label class="admin-search"><AdminIcon name="search" /><input aria-label="Search messages" placeholder="Search messages…" name="q" type="search" maxlength="100" value={search} /></label>
+      <label class="admin-inline-label">Status<select name="status">
+        <option value="">All messages</option>
+        <option value="unread" selected={filter === 'unread'}>Unread</option>
+        <option value="read" selected={filter === 'read'}>Read</option>
+        <option value="starred" selected={filter === 'starred'}>Starred</option>
+      </select></label>
+      <button class="btn btn-outline button secondary">Filter</button>
+    </form>
+  </header>
+  <div class="admin-inbox-split">
+    <div class="inbox-index">
+      {items.length ? <ul class="inbox-rows">
+        {items.map(item => <li><a href={url(page, item.id) + '#message-detail'} aria-current={selected?.id === item.id ? 'true' : undefined}>
+          <span class="inbox-row-icon" aria-label={item.read_at ? 'Read' : 'Unread'}>{item.read_at ? <AdminIcon name="inbox" /> : <span class="inbox-dot"></span>}</span>
+          <span class="inbox-row-text"><strong>{item.name}</strong><span>{summary(item)}</span></span>
+          <span class="inbox-row-meta"><time datetime={item.created_at}>{date(item.created_at)}</time>{item.starred && <AdminIcon name="star" />}</span>
+        </a></li>)}
+      </ul> : <p class="admin-empty">No messages in this view.</p>}
+      {(page > 1 || hasNext) && <nav class="admin-pagination" aria-label="Message pages">
+        {page > 1 && <a class="button secondary" href={url(page - 1)}>Previous</a>}
+        <span>Page {page}</span>
+        {hasNext && <a class="button secondary" href={url(page + 1)}>Next</a>}
+      </nav>}
+    </div>
+    {selected && <article id="message-detail" class="inbox-detail" aria-labelledby="message-title">
+      <h3 id="message-title">{subject}</h3>
+      <header class="inbox-sender">
+        <span class="inbox-avatar" aria-hidden="true">{Array.from(selected.name)[0]?.toLocaleUpperCase()}</span>
+        <div><strong>{selected.name}</strong><p class="admin-muted">{selected.email}</p></div>
+        <time class="admin-muted" datetime={selected.created_at}>{date(selected.created_at)}</time>
+        <form method="post" action={actionUrl}>
+          <input type="hidden" name="id" value={selected.id} />
+          <input type="hidden" name="starred" value={selected.starred ? 'no' : 'yes'} />
+          <button class:list={['btn btn-outline button secondary inbox-star', { 'is-starred': selected.starred }]} name="action" value="star-message" aria-label="Star message" aria-pressed={selected.starred}><AdminIcon name="star" /></button>
+        </form>
+      </header>
+      <div class="admin-message">{selected.message.split(/(?:\r?\n[ \t]*){2,}/).map(paragraph => <p>{paragraph}</p>)}</div>
+      <div class="actions inbox-actions">
+        <a class="btn btn-primary button inbox-reply" href={reply}><AdminIcon name="reply" />Reply</a>
+        <a class="btn btn-outline button secondary" href={forward}><AdminIcon name="forward" />Forward</a>
+        <details class="admin-confirm"><summary class="button secondary"><AdminIcon name="delete" />Delete</summary>
+          <form method="post" action={actionUrl}>
+            <input type="hidden" name="id" value={selected.id} />
+            <label><span><input type="checkbox" name="confirm" value="yes" required /> Permanently delete this message</span></label>
+            <button class="button secondary" name="action" value="delete-message">Delete message</button>
+          </form>
+        </details>
+        <form method="post" action={actionUrl}>
+          <input type="hidden" name="id" value={selected.id} />
+          <input type="hidden" name="read" value={selected.read_at ? 'no' : 'yes'} />
+          <button class="btn btn-outline button secondary" name="action" value="mark-message"><AdminIcon name="inbox" />Mark as {selected.read_at ? 'unread' : 'read'}</button>
+        </form>
+      </div>
+    </article>}
+  </div>
+</section>

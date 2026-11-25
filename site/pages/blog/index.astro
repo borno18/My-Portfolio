@@ -3,8 +3,9 @@ export const prerender = false;
 import Base from '../../layouts/Base.astro';
 import ArticleTeaser from '../../components/ArticleTeaser.astro';
 import { getPosts } from '../../lib/content.js';
-Astro.response.headers.set('Cache-Control', 'no-store');
+import { cachePublic, publicCacheTags } from '../../lib/public-cache.js';
 const posts = await getPosts();
+cachePublic(Astro.response.headers, publicCacheTags.blog);
 ---
 <Base title="Blog" description="Project notes and articles by Joydip Majumdar about web applications, mobile development, and software engineering.">
   <section class="wrap page-intro blog-masthead">
@@ -12,6 +13,6 @@ const posts = await getPosts();
     <p>Notes on building software and studying at university.</p>
   </section>
   <div class="wrap newspaper-grid blog-index">
-    {posts.map(post => <ArticleTeaser post={post} heading="h2" />)}
+    {posts.length ? posts.map(post => <ArticleTeaser post={post} heading="h2" />) : <p>No articles have been published yet.</p>}
   </div>
 </Base>

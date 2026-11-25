@@ -1,14 +1,16 @@
 ---
 export const prerender = false;
-import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
-import { cloudImage, env, renderMarkdown } from '../lib/content.js';
-import { adminSections, changePostVisibility, featureRepository, parsePost, photoFields, recordId, savePost, saveProjectSettings, updateInbox } from '../lib/admin.js';
+import { env, renderMarkdown } from '../lib/content.js';
+import { adminSections, changePostVisibility, createPhotoAlbum, featureRepository, parsePost, photoFields, recordId, reorderPhotos, savePost, saveProjectSettings, setPhotoPlacement, updateInbox, validRecordId } from '../lib/admin.js';
 import { projectDisplay } from '../lib/work.js';
-import { presetImages } from '../lib/photos.js';
 import { listRepositories } from '../lib/github.js';
-import AdminPostEditor from '../components/AdminPostEditor.astro';
-import AdminPhotoFields from '../components/AdminPhotoFields.astro';
+import { clearPublicCache } from '../lib/public-cache.js';
+import AdminIcon from '../components/AdminIcon.astro';
+import AdminInbox from '../components/AdminInbox.astro';
+import AdminBlog from '../components/AdminBlog.astro';
+import AdminPhotos from '../components/AdminPhotos.astro';
+import AdminProjects from '../components/AdminProjects.astro';
 import '../admin.css';
 import { authClient, ownerSession, sameOrigin, field, InputError, editPhoto, publishPhoto, removePhoto } from '../lib/server.js';
 
@@ -20,9 +22,27 @@ const inboxReady = /^[a-f0-9]{64}$/.test(env('CONTACT_INBOX_KEY') || '');
 const params = Astro.url.searchParams;
 const section = Object.hasOwn(adminSections, params.get('section')) ? params.get('section') : 'blog';
 const editing = section === 'blog' ? params.get('edit') : null;
-const filter = ['draft', 'published', 'unread', 'read'].includes(params.get('status')) ? params.get('status') : '';
+const blogStates = ['draft', 'published', 'scheduled', 'archived'];
+const allowedStatuses = { blog: blogStates, inbox: ['unread', 'read', 'starred'], photos: [], projects: ['featured', 'unfeatured'] };
+const filter = allowedStatuses[section].includes(params.get('status')) ? params.get('status') : '';
 const search = (params.get('q') || '').trim().slice(0, 100);
-const statuses = new Map([['yes', 'Saved. Changes are live.'], ['draft', 'Draft saved.'], ['unpublished', 'Article moved to drafts.'], ['deleted', 'Article deleted.'], ['message', 'Message status updated.']]);
+const statuses = new Map([
+  ['yes', 'Saved. Changes are live.'],
+  ['draft', 'Draft saved.'],
+  ['archived', 'Article archived.'],
+  ['scheduled', 'Publication scheduled.'],
+  ['unpublished', 'Article moved to drafts.'],
+  ['deleted', 'Article deleted.'],
+  ['message', 'Message status updated.'],
+  ['message-deleted', 'Message deleted.'],
+  ['photo-uploaded', 'Photograph uploaded.'],
+  ['photo-saved', 'Photograph changes saved.'],
+  ['photo-removed', 'Photographs removed.'],
+  ['photo-order', 'Display order saved.'],
+  ['photo-partial', 'Some photographs were removed. Review the remaining photographs before retrying.'],
+  ['album', 'Album created.'],
+  ['project', 'Project placement saved.'],
+]);
 let notice = statuses.get(params.get('saved')) || '';
 let factor;
 let qr;
@@ -34,9 +54,59 @@ let originalSlug = '';
 let repositories = [];
 let hasNext = false;
 let githubUnavailable = false;
+let syncedAt;
+const repoLanguage = (params.get('language') || '').slice(0, 60);
+const repoSort = ['name', 'stars', 'placement'].includes(params.get('sort')) ? params.get('sort') : 'updated';
+const projectUrl = (page, saved) => {
+  const query = new URLSearchParams({ section: 'projects' });
+  if (search) query.set('q', search);
+  if (filter) query.set('status', filter);
+  if (repoLanguage) query.set('language', repoLanguage);
+  if (repoSort !== 'updated') query.set('sort', repoSort);
+  if (page > 1) query.set('page', String(page));
+  if (saved) query.set('saved', saved);
+  return '/admin?' + query;
+};
 let editedPhotoId;
+let albums = [];
+let photoTotal = 0;
+let album = params.get('album') || '';
+const photoCategory = (params.get('category') || '').slice(0, 40);
+const photoSort = ['recent', 'title'].includes(params.get('sort')) ? params.get('sort') : 'order';
+const photoUrl = ({ id = params.get('photo'), albumId = album, category = photoCategory, q = search, sort = photoSort, saved } = {}) => {
+  const query = new URLSearchParams({ section: 'photos' });
+  if (albumId) query.set('album', albumId);
+  if (category) query.set('category', category);
+  if (q) query.set('q', q);
+  if (sort !== 'order') query.set('sort', sort);
+  if (id) query.set('photo', id);
+  if (saved) query.set('saved', saved);
+  return '/admin?' + query;
+};
+const photoSaved = async (saved, options = {}) => {
+  if (saved !== 'album') await clearPublicCache('photos');
+  return Astro.redirect(photoUrl({ ...options, saved }), 303);
+};
+let unread = 0;
+let postCounts = {};
+const postSize = 5;
+const now = new Date().toISOString();
+const postStatus = row => row.status === 'published' && Date.parse(row.published_at) > Date.parse(now) ? 'scheduled' : row.status;
+const postFilter = (query, status) => {
+  if (status === 'published') return query.eq('status', 'published').lte('published_at', now);
+  if (status === 'scheduled') return query.eq('status', 'published').gt('published_at', now);
+  return blogStates.includes(status) ? query.eq('status', status) : query;
+};
+const blogUrl = (edit, { page = repoPage, status = filter, q = search, saved } = {}) => {
+  const query = new URLSearchParams({ section: 'blog' });
+  if (q) query.set('q', q);
+  if (status) query.set('status', status);
+  if (page > 1) query.set('page', String(page));
+  if (edit) query.set('edit', edit);
+  if (saved) query.set('saved', saved);
+  return '/admin?' + query;
+};
 const repoPage = Math.max(1, Math.min(100, Number.parseInt(params.get('page'), 10) || 1));
-const redirectSaved = (target, saved) => Astro.redirect('/admin?section=' + target + '&saved=' + saved, 303);
 
 if (Astro.request.method === 'POST') {
   if (!sameOrigin(Astro.request)) return new Response('Forbidden', { status: 403 });
@@ -82,41 +152,72 @@ if (Astro.request.method === 'POST') {
       return Astro.redirect('/admin', 303);
     } else if (!owner.verified) {
       return new Response('Authenticator verification required', { status: 403 });
-    } else if (['preview-post', 'save-draft', 'publish-post'].includes(action)) {
+    } else if (['preview-post', 'save-draft', 'save-archive', 'publish-post'].includes(action)) {
       originalSlug = field(form, 'original_slug', 100, true);
       const draft = parsePost(form, action === 'preview-post');
-      const previous = originalSlug ? await db.from('portfolio_posts').select('status,cover_path,cover_alt').eq('slug', originalSlug).single() : null;
+      const previous = originalSlug ? await db.from('portfolio_posts').select('status,cover_path,cover_alt,updated_at,published_at').eq('slug', originalSlug).single() : null;
       if (previous?.error) throw previous.error;
-      post = { ...previous?.data, ...draft, status: previous?.data.status || 'draft' };
+      post = { ...previous?.data, ...draft, status: previous?.data.status || 'draft', featured: form.get('featured') === 'yes',
+        cover_alt: form.get('cover_alt'), scheduleInput: form.get('publish_at'), removeCover: form.get('remove_cover') === 'yes' };
       if (action === 'preview-post') {
         preview = renderMarkdown(post.body, Astro.site, Astro.url);
       } else {
-        const changedPublic = await savePost(db, draft, originalSlug, action === 'publish-post', form);
-        return redirectSaved('blog', changedPublic ? 'yes' : 'draft');
+        const { changedPublic, scheduled } = await savePost(db, draft, originalSlug, action === 'publish-post', form);
+        if (changedPublic) await clearPublicCache('blog');
+        const saved = { 'save-draft': 'draft', 'save-archive': 'archived', 'publish-post': scheduled ? 'scheduled' : 'yes' }[action];
+        return Astro.redirect(blogUrl(draft.slug, { saved }), 303);
       }
     } else if (action === 'unpublish-post' || action === 'delete-post') {
       await changePostVisibility(db, form, action === 'delete-post');
-      return redirectSaved('blog', action === 'delete-post' ? 'deleted' : 'unpublished');
+      await clearPublicCache('blog');
+      return Astro.redirect(blogUrl(null, { saved: action === 'delete-post' ? 'deleted' : 'unpublished' }), 303);
     } else if (action === 'publish-photo') {
       await publishPhoto(db, form, photoFields(form));
-      return redirectSaved('photos', 'yes');
+      return photoSaved('photo-uploaded', { id: null });
     } else if (action === 'edit-photo') {
       editedPhotoId = recordId(form);
       await editPhoto(db, editedPhotoId, photoFields(form), form.get('photo'));
-      return redirectSaved('photos', 'yes');
+      return photoSaved('photo-saved', { id: editedPhotoId });
     } else if (action === 'remove-photo') {
       if (form.get('confirm') !== 'yes') throw new InputError('Confirm which photograph you want to remove.');
       await removePhoto(db, recordId(form));
-      return redirectSaved('photos', 'yes');
-    } else if (action === 'mark-message') {
-      await updateInbox(db, form);
-      return redirectSaved('inbox', 'message');
-    } else if (action === 'save-project') {
-      await saveProjectSettings(db, form);
-      return redirectSaved('projects', 'yes');
-    } else if (action === 'feature-repository') {
-      await featureRepository(db, form);
-      return redirectSaved('projects', 'yes');
+      return photoSaved('photo-removed', { id: null });
+    } else if (action === 'create-album') {
+      const id = await createPhotoAlbum(db, form);
+      return photoSaved('album', { albumId: id, category: '', q: '', id: null });
+    } else if (['feature-photos', 'unfeature-photos', 'hide-photos', 'show-photos', 'move-photos'].includes(action)) {
+      const count = await setPhotoPlacement(db, form, action);
+      if (!count) throw new InputError('The selected photographs are no longer available.');
+      return photoSaved('photo-saved');
+    } else if (action === 'reorder-photos') {
+      await reorderPhotos(db, form);
+      return photoSaved('photo-order');
+    } else if (action === 'remove-photos') {
+      const ids = [...new Set(form.getAll('id'))];
+      if (form.get('confirm') !== 'yes' || !ids.length || ids.length > 5 || !ids.every(validRecordId)) throw new InputError('Select and confirm up to five photographs to remove at a time.');
+      let removed = 0;
+      try {
+        for (const id of ids) {
+          await removePhoto(db, id);
+          removed++;
+        }
+      } catch (error) {
+        if (!removed) throw error;
+        return photoSaved('photo-partial', { id: null });
+      }
+      return photoSaved('photo-removed', { id: null });
+    } else if (['mark-message', 'star-message', 'delete-message'].includes(action)) {
+      await updateInbox(db, form, action);
+      const next = new URLSearchParams({ section: 'inbox', saved: action === 'delete-message' ? 'message-deleted' : 'message' });
+      for (const key of ['q', 'status', 'message', 'page']) {
+        if (params.has(key) && (key !== 'message' || action !== 'delete-message')) next.set(key, params.get(key));
+      }
+      return Astro.redirect('/admin?' + next, 303);
+    } else if (['save-project', 'toggle-project', 'feature-repository'].includes(action)) {
+      if (action !== 'feature-repository') await saveProjectSettings(db, form, action === 'toggle-project');
+      else await featureRepository(db, form);
+      await clearPublicCache('projects');
+      return Astro.redirect(projectUrl(repoPage, 'project'), 303);
     } else {
       return new Response('Invalid operation', { status: 400 });
     }
@@ -134,43 +235,63 @@ if (owner.user && !owner.verified && !factor) {
   factor = data?.totp?.[0]?.id;
 }
 if (owner.verified) {
+  const unreadCount = db.from('portfolio_messages').select('id', { count: 'exact', head: true }).is('read_at', null).then(result => result.count ?? 0);
   let result;
-  if (section === 'blog' && editing) {
+  if (section === 'blog') {
+    const posts = db.from('portfolio_posts');
+    const matching = query => search ? query.ilike('title', '%' + search.replace(/[\\%_]/g, '\\$&') + '%') : query;
+    const list = postFilter(matching(posts.select('slug,title,status,published_at,updated_at,cover_path,cover_alt', { count: 'exact' })), filter)
+      .order('updated_at', { ascending: false, nullsFirst: false }).order('published_at', { ascending: false, nullsFirst: false })
+      .order('slug').range((repoPage - 1) * postSize, repoPage * postSize - 1);
+    const counts = blogStates.map(status => postFilter(matching(posts.select('slug', { count: 'exact', head: true })), status));
+    const [listed, ...totals] = await Promise.all([list, ...counts]);
+    result = listed;
+    items = listed.data || [];
+    postCounts = Object.fromEntries(blogStates.map((status, index) => [status, totals[index].count ?? 0]));
+    hasNext = listed.count > repoPage * postSize;
     if (!post) {
-      originalSlug = editing === '_new' ? '' : editing;
+      originalSlug = editing === '_new' ? '' : editing || items[0]?.slug || '';
       if (originalSlug) {
-        result = await db.from('portfolio_posts').select('slug,title,description,body,status,cover_path,cover_alt').eq('slug', originalSlug).maybeSingle();
-        post = result.data;
-        if (!post && !result.error) Astro.response.status = 404;
-      } else {
+        const detail = await posts.select('slug,title,description,body,status,cover_path,cover_alt,featured,updated_at,published_at').eq('slug', originalSlug).maybeSingle();
+        post = detail.data;
+        if (detail.error) result = detail;
+        if (!post && editing && !detail.error) Astro.response.status = 404;
+      } else if (editing === '_new') {
         post = { slug: '', title: '', description: '', body: '', status: 'draft' };
       }
     }
-  } else if (section === 'blog') {
-    let query = db.from('portfolio_posts').select('slug,title,status,published_at').order('published_at', { ascending: false }).order('slug');
-    if (['draft', 'published'].includes(filter)) query = query.eq('status', filter);
-    result = await query;
-    items = (result.data || []).filter(item => !search || (item.title + ' ' + item.slug).toLowerCase().includes(search.toLowerCase()));
   } else if (section === 'photos') {
-    result = await db.from('portfolio_photos').select('id,title,alt,category,caption,display_order,bundled_key,cloud_name,public_id,version').order('display_order').order('created_at', { ascending: false });
-    items = result.data || [];
+    const [gallery, photoAlbums] = await Promise.all([
+      db.from('portfolio_photos').select('id,title,alt,category,caption,display_order,bundled_key,cloud_name,public_id,version,width,height,created_at,album_id,visible,featured,tags', { count: 'exact' })
+        .order('display_order').order('created_at', { ascending: false }).order('id'),
+      db.from('portfolio_photo_albums').select('id,name').order('name'),
+    ]);
+    result = gallery.error ? gallery : photoAlbums;
+    albums = photoAlbums.data || [];
+    if (!albums.some(entry => entry.id === album)) album = '';
+    photoTotal = gallery.count ?? 0;
+    items = gallery.data || [];
   } else if (section === 'inbox') {
-    let query = db.from('portfolio_messages').select('id,name,email,message,read_at,created_at').order('created_at', { ascending: false }).limit(100);
+    let query = db.from('portfolio_messages').select('id,name,email,message,read_at,starred,created_at', { count: 'exact' })
+      .order('created_at', { ascending: false }).order('id').range((repoPage - 1) * 30, repoPage * 30 - 1);
     if (filter === 'unread') query = query.is('read_at', null);
     if (filter === 'read') query = query.not('read_at', 'is', null);
+    if (filter === 'starred') query = query.eq('starred', true);
+    if (search) query = query.ilike('search_text', '%' + search.replace(/[\\%_]/g, '\\$&') + '%');
     result = await query;
     items = result.data || [];
+    hasNext = result.count > repoPage * 30;
   } else {
     const [settings, github] = await Promise.allSettled([
       db.from('portfolio_project_settings').select('slug,featured,display_order,repository'),
-      listRepositories(repoPage),
+      listRepositories(params.get('sync') === 'yes'),
     ]);
     result = settings.status === 'fulfilled' ? settings.value : { error: settings.reason };
     items = projectDisplay(result.data || []);
     if (github.status === 'fulfilled') {
-      const imported = new Set(items.map(project => project.repo.toLowerCase().split('/').at(-1)));
-      repositories = github.value.repositories.filter(repo => !imported.has(repo.name.toLowerCase()));
-      hasNext = github.value.hasNext;
+      repositories = github.value.repositories;
+      syncedAt = github.value.syncedAt;
+      githubUnavailable = Boolean(github.value.stale);
     } else {
       githubUnavailable = true;
     }
@@ -179,115 +300,43 @@ if (owner.verified) {
     Astro.response.status = 502;
     notice ||= 'This section could not be loaded. Try again in a moment.';
   }
+  unread = await unreadCount;
 }
-const formatDate = date => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'Asia/Dhaka' }).format(new Date(date));
 ---
-<Base title="Owner dashboard" description="Private portfolio publishing." privatePage>
+<Base title="Owner dashboard" description="Private portfolio publishing." privatePage bodyClass={owner.verified ? 'admin-page admin-page-' + section : undefined}>
   <div class:list={['admin', owner.verified ? 'wrap admin-workspace' : 'reading']}>
     {owner.verified ? <>
       <div class="admin-top">
         <div><h1>Portfolio admin</h1><p>Manage articles, photographs, inbox, and featured projects.</p></div>
         <div class="actions">
-          <form method="post"><button name="action" value="logout" class="button secondary">Sign out</button></form>
+          <form method="post"><button name="action" value="logout" class="btn btn-outline button secondary">Sign out</button></form>
         </div>
       </div>
       {notice && <p role="status">{notice}</p>}
       <div class="admin-grid">
         <nav class="admin-nav" aria-label="Admin sections">
-          {Object.entries(adminSections).map(([key, label]) => <a href={'/admin?section=' + key} aria-current={key === section ? 'page' : undefined}>{label}</a>)}
+          {Object.entries(adminSections).map(([key, label]) => <a href={'/admin?section=' + key} aria-current={key === section ? 'page' : undefined}>
+            <AdminIcon name={key} />{label}
+            {key === 'inbox' && unread > 0 && <span class="badge admin-count" aria-label={unread + ' unread'}>{unread}</span>}
+          </a>)}
+          {section === 'photos' && <div class="admin-albums">
+            <h2>Albums</h2>
+            <a href={photoUrl({ albumId: '', category: '', q: '', id: null })} aria-current={!album ? 'true' : undefined}><AdminIcon name="folder" />All photos <span class="badge admin-count">{photoTotal}</span></a>
+            {albums.map(entry => <a href={photoUrl({ albumId: entry.id, category: '', q: '', id: null })} aria-current={album === entry.id ? 'true' : undefined}>
+              <AdminIcon name="folder" />{entry.name}<span class="badge admin-count">{items.filter(photo => photo.album_id === entry.id).length}</span>
+            </a>)}
+            <details><summary class="button secondary"><AdminIcon name="plus" />New album</summary>
+              <form method="post" action={photoUrl()}><label>Album name<input name="album_name" required maxlength="40" /></label><button class="button" name="action" value="create-album">Create album</button></form>
+            </details>
+          </div>}
         </nav>
-        <div class="admin-main">
-          {section === 'blog' && (editing ? (
-            post ? <AdminPostEditor {post} {originalSlug} {preview} {editing} /> :
-              <><h2>Article unavailable</h2><p class="admin-empty"><a href="/admin?section=blog">Back to posts</a></p></>
-          ) : <>
-            <div class="admin-heading"><h2>Blog posts</h2><a class="button" href="/admin?section=blog&amp;edit=_new">New article</a></div>
-            <form method="get" class="admin-tools">
-              <input type="hidden" name="section" value="blog" />
-              <label>Search<input name="q" type="search" maxlength="100" value={search} /></label>
-              <label>Status<select name="status"><option value="">All statuses</option><option value="draft" selected={filter === 'draft'}>Draft</option><option value="published" selected={filter === 'published'}>Published</option></select></label>
-              <button class="button secondary">Filter posts</button>
-            </form>
-            {items.length ? <ul class="admin-list">
-              {items.map(item => <li>
-                <div><strong>{item.title}</strong><small>{item.slug}</small></div>
-                <div class="actions"><span class="admin-status">{item.status === 'published' ? 'Published' : 'Draft'}</span>
-                  {item.published_at && <time datetime={item.published_at}>{formatDate(item.published_at)}</time>}
-                  <a href={'/admin?section=blog&edit=' + encodeURIComponent(item.slug)} aria-label={'Edit ' + item.title}>Edit</a>
-                  {item.status === 'published' && <form method="post">
-                    <input type="hidden" name="slug" value={item.slug} />
-                    <button class="button secondary" name="action" value="unpublish-post" aria-label={'Unpublish ' + item.title}>Unpublish</button>
-                  </form>}</div>
-              </li>)}
-            </ul> : <p class="admin-empty">No articles match this view.</p>}
-          </>)}
-          {section === 'inbox' && <>
-            <h2>Inbox</h2>
-            {!inboxReady && <p class="form-status">The message form is temporarily unavailable.</p>}
-            <form method="get" class="admin-tools"><input type="hidden" name="section" value="inbox" />
-              <label>Status<select name="status"><option value="">All messages</option><option value="unread" selected={filter === 'unread'}>Unread</option><option value="read" selected={filter === 'read'}>Read</option></select></label>
-              <button class="button secondary">Filter inbox</button>
-            </form>
-            {items.length ? items.map(item => <details class="admin-inbox-item"><summary>{item.name} · {item.read_at ? 'Read' : 'Unread'}</summary>
-              <time datetime={item.created_at}>{formatDate(item.created_at)}</time>
-              <p><a href={'mailto:' + encodeURIComponent(item.email).replace('%40','@')}>Reply to {item.email}</a></p>
-              <p class="admin-message">{item.message}</p>
-              <form method="post"><input type="hidden" name="id" value={item.id} />
-                <input type="hidden" name="read" value={item.read_at ? 'no' : 'yes'} />
-                <button class="button secondary" name="action" value="mark-message">Mark as {item.read_at ? 'unread' : 'read'}</button>
-              </form>
-            </details>) : <p class="admin-empty">No messages in this view.</p>}
-          </>}
-          {section === 'photos' && <>
-            <h2>Photography</h2>
-            {canUpload ? <details open={Astro.request.method === 'POST' && Astro.response.status >= 400 && !editedPhotoId}><summary>Upload photograph</summary><form method="post" enctype="multipart/form-data" data-photo-upload>
-              <input type="hidden" name="action" value="publish-photo" /><AdminPhotoFields />
-              <label>Photograph · JPEG, PNG, or WebP<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
-              <p role="status" data-upload-status hidden></p>
-              <button class="button">Upload and publish</button>
-            </form></details> : <p class="form-status">Cloudinary credentials are required to upload, replace, or remove hosted images.</p>}
-            <p class="admin-empty">Lower display numbers appear first.</p>
-            {items.length ? items.map(photo => {
-              const preset = photo.public_id ? undefined : presetImages.get(photo.bundled_key);
-              const thumbnail = preset ? '' : cloudImage(photo, 360);
-              return <details open={editedPhotoId === photo.id}><summary>{photo.title} · {photo.category}</summary>
-              {preset ? <Image src={preset} alt={photo.alt} width={240} format="webp" /> :
-                thumbnail && <img src={thumbnail} alt={photo.alt} width="240" loading="lazy" />}
-              <form method="post" enctype="multipart/form-data" data-photo-upload={canUpload ? '' : undefined}>
-                <input type="hidden" name="id" value={photo.id} /><input type="hidden" name="action" value="edit-photo" /><AdminPhotoFields {photo} />
-                {canUpload && <label>Replace image · JPEG, PNG, or WebP<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" /></label>}
-                <p role="status" data-upload-status hidden></p>
-                <button class="button">Save changes</button>
-              </form>
-              {(canUpload || !photo.public_id) && <form method="post"><input type="hidden" name="id" value={photo.id} />
-                <label><span><input name="confirm" type="checkbox" value="yes" required /> Confirm removal</span></label>
-                <button class="button secondary" name="action" value="remove-photo">Remove from the gallery</button>
-              </form>}
-            </details>;
-            }) : <p class="admin-empty">No photographs in the gallery.</p>}
-          </>}
-          {section === 'projects' && <>
-            <h2>Projects</h2><p class="admin-empty">Featured projects appear on the homepage and Projects page in display order.</p>
-            {items.map(project => <details><summary>{project.name} · {project.featured ? 'Featured' : 'Unfeatured'}</summary>
-              <form method="post"><input type="hidden" name="slug" value={project.slug} />
-                <label><span><input name="featured" type="checkbox" value="yes" checked={project.featured} /> Feature on the site</span></label>
-                <label>Display order<input type="number" name="display_order" min="0" max="999" required value={project.display_order} /></label>
-                <button class="button" name="action" value="save-project">Save placement</button>
-              </form>
-            </details>)}
-            <h3>GitHub repositories</h3>
-            {githubUnavailable ? <p class="form-status">GitHub is temporarily unavailable. Refresh to try again.</p> :
-              repositories.length ? <ul class="admin-list">{repositories.map(repo => <li>
-                <div><strong>{repo.name}</strong>{repo.description && <small>{repo.description}</small>}</div>
-                <form method="post"><input type="hidden" name="repository" value={repo.name} />
-                  <button class="button secondary" name="action" value="feature-repository" aria-label={'Feature ' + repo.name}>Feature</button>
-                </form>
-              </li>)}</ul> : <p class="admin-empty">No additional repositories on this page.</p>}
-            {(repoPage > 1 || hasNext) && <div class="actions">
-              {repoPage > 1 && <a href={'/admin?section=projects&page=' + (repoPage - 1)}>Previous repositories</a>}
-              {hasNext && repoPage < 100 && <a href={'/admin?section=projects&page=' + (repoPage + 1)}>Next repositories</a>}
-            </div>}
-          </>}
+        <div class:list={['admin-main', 'admin-' + section]}>
+          {section === 'blog' && <AdminBlog {items} {post} {originalSlug} {preview} {editing} {search} {filter} {postCounts} {postStatus} {blogUrl} page={repoPage} {hasNext} />}
+          {section === 'inbox' && <AdminInbox {items} {unread} {search} {filter} {inboxReady} {hasNext} page={repoPage} selectedId={params.get('message')} />}
+          {section === 'photos' && <AdminPhotos {items} {albums} {album} {photoCategory} {photoSort} {photoTotal} {search} {canUpload} {photoUrl}
+            selectedId={editedPhotoId || params.get('photo')} uploadOpen={params.get('upload') === 'yes'} />}
+          {section === 'projects' && <AdminProjects projects={items} {repositories} {githubUnavailable} {syncedAt} {search}
+            repoFilter={filter} {repoLanguage} {repoSort} page={repoPage} {projectUrl} />}
         </div>
       </div>
     </> : <>

@@ -1,0 +1,19 @@
+---
+const { name } = Astro.props;
+const paths = {
+  blog: 'M6 3h9l4 4v14H6z M14 3v5h5 M9 12h7m-7 4h7',
+  inbox: 'M3 5h18v14H3z M3 6l9 7 9-7',
+  photos: 'M3 7h4l2-3h6l2 3h4v13H3z M15.5 13a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z',
+  projects: 'm12 3 9 5-9 5-9-5 9-5z M3 12l9 5 9-5M3 16l9 5 9-5',
+  search: 'M15 10a5 5 0 1 1-10 0 5 5 0 0 1 10 0zm-1 4 5 5',
+  star: 'm12 3 2.7 5.6 6.2.9-4.5 4.4 1.1 6.2-5.5-3-5.5 3 1.1-6.2L3.1 9.5l6.2-.9L12 3z',
+  reply: 'm9 5-6 6 6 6v-4c6 0 8 1 11 6 0-8-4-10-11-10z',
+  forward: 'm15 5 6 6-6 6v-4c-6 0-8 1-11 6 0-8 4-10 11-10z',
+  delete: 'M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7',
+  folder: 'M3 5h7l2 2h9v12H3z',
+  plus: 'M12 5v14M5 12h14',
+  upload: 'M4 15v5h16v-5M12 16V4m-5 5 5-5 5 5',
+  sync: 'M20 10a8 8 0 0 0-14-4L3 9m0-5v5h5m-4 5a8 8 0 0 0 14 4l3-3m0 5v-5h-5',
+};
+---
+<svg class="admin-icon" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><path d={paths[name]} /></svg>

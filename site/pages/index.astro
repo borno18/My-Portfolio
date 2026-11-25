@@ -6,16 +6,26 @@ import Link from '../components/Link.astro';
 import ProjectList from '../components/ProjectList.astro';
 import ArticleTeaser from '../components/ArticleTeaser.astro';
 import Background from '../components/Background.astro';
-import portrait from '../assets/joydip-portrait.webp';
+import portrait320 from '../assets/joydip-portrait-320.webp';
+import portrait400 from '../assets/joydip-portrait-400.webp';
+import portrait640 from '../assets/joydip-portrait-640.webp';
+import portrait800 from '../assets/joydip-portrait-800.webp';
 import { projectDisplay } from '../lib/work.js';
 import { galleryPhotos } from '../lib/photos.js';
 import { cloudImage, getPosts, getProjectSettings } from '../lib/content.js';
+import { cachePublic, publicCacheTags } from '../lib/public-cache.js';
 
-Astro.response.headers.set('Cache-Control', 'no-store');
-const [articles, settings, photos] = await Promise.all([getPosts(), getProjectSettings(), galleryPhotos()]);
-const featuredPhoto = photos.find(photo => photo.bundled_key === 'a-dream-afternoon') ?? photos[0];
-const posts = articles.slice(0, 2);
-const featuredProjects = projectDisplay(settings).filter(project => project.featured);
+const [articles, settings, photos] = await Promise.allSettled([getPosts({ limit: 2, featuredFirst: true }), getProjectSettings(), galleryPhotos()]);
+if ([articles, settings, photos].every(result => result.status === 'fulfilled')) {
+  cachePublic(Astro.response.headers, ...Object.values(publicCacheTags));
+} else {
+  Astro.response.headers.set('Cache-Control', 'no-store');
+  for (const result of [articles, settings, photos]) if (result.status === 'rejected') console.error(result.reason);
+}
+const featuredPhoto = photos.value?.find(photo => photo.featured) ?? photos.value?.find(photo => photo.bundled_key === 'a-dream-afternoon') ?? photos.value?.[0];
+const featuredProjects = settings.status === 'fulfilled' ? projectDisplay(settings.value).filter(project => project.featured) : [];
+const portraitSizes = [portrait320, portrait400, portrait640, portrait800]
+  .map(image => image.src + ' ' + image.width + 'w').join(', ');
 const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software Engineering Student', url: Astro.site.href, affiliation: { '@type': 'CollegeOrUniversity', name: 'Shahjalal University of Science and Technology' }, sameAs: ['https://github.com/borno18', 'https://www.linkedin.com/in/joydip-majumdar/'] };
 ---
 <Base description="Joydip Majumdar is a software engineering student at SUST in Sylhet, Bangladesh. Explore his projects, engineering blog, and Fujifilm photography." schema={{ '@context': 'https://schema.org', '@type': 'ProfilePage', mainEntity: person }}>
@@ -30,14 +40,15 @@ const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software
       </div>
     </div>
     <div class="portrait-panel">
-      <Image src={portrait} alt="Portrait of Joydip Majumdar" width={960} widths={[400, 640, 960]} sizes="(max-width: 680px) 86vw, 43vw" format="webp" loading="eager" fetchpriority="high" />
+      <img src={portrait400.src} srcset={portraitSizes} sizes="(max-width: 380px) calc(100vw - 72px), (max-width: 680px) 310px, (max-width: 1000px) 33vw, 390px"
+        width={portrait400.width} height={portrait400.height} alt="Portrait of Joydip Majumdar" fetchpriority="high" />
     </div>
   </section>
 
   <section class="project-section" id="projects">
     <div class="wrap band">
       <div class="section-head"><h2>Projects</h2><Link href="/projects">All projects</Link></div>
-      <ProjectList projects={featuredProjects} />
+      {settings.status === 'fulfilled' ? <ProjectList projects={featuredProjects} /> : <p>Projects are temporarily unavailable.</p>}
     </div>
   </section>
 
@@ -45,7 +56,8 @@ const person = { '@type': 'Person', name: 'Joydip Majumdar', jobTitle: 'Software
 
   <section class="band wrap news-section" id="blog">
     <div class="section-head newspaper-head"><h2>Blog</h2><Link href="/blog">View all articles</Link></div>
-    <div class="newspaper-grid">{posts.map(post => <ArticleTeaser post={post} />)}</div>
+    {articles.value?.length ? <div class="newspaper-grid">{articles.value.map(post => <ArticleTeaser post={post} />)}</div> :
+      <p>{articles.status === 'rejected' ? 'Articles are temporarily unavailable.' : 'No articles have been published yet.'}</p>}
   </section>
 
   <section class="photo-band" id="photography">

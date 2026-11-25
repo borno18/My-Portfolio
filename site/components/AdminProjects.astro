@@ -1,0 +1,105 @@
+---
+import AdminIcon from './AdminIcon.astro';
+import { githubOwner } from '../lib/github.js';
+const { projects, repositories, githubUnavailable, syncedAt, search, repoFilter, repoLanguage, repoSort, page, projectUrl } = Astro.props;
+const nameOf = project => project.repo.split('/').at(-1);
+const byName = new Map(projects.map(project => [nameOf(project).toLowerCase(), project]));
+const bySlug = new Map(projects.map(project => [project.slug, project]));
+const matched = new Set();
+const profile = 'https://github.com/' + githubOwner;
+const rows = repositories.map(repo => {
+  const project = bySlug.get(repo.slug) || byName.get(repo.name.toLowerCase());
+  if (project) matched.add(project.slug);
+  return { ...repo, project, href: profile + '/' + encodeURIComponent(repo.name) };
+});
+for (const project of projects) {
+  if (matched.has(project.slug)) continue;
+  rows.push({ name: nameOf(project), description: project.summary, language: project.stack, stars: null, updatedAt: null, project, href: project.repo });
+}
+const languages = [...new Set(rows.map(row => row.language).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+const term = search.toLowerCase();
+const filtered = rows.filter(row =>
+  (!term || [row.name, row.description || '', row.project?.name || ''].some(value => value.toLowerCase().includes(term))) &&
+  (!repoLanguage || row.language === repoLanguage) &&
+  (!repoFilter || Boolean(row.project?.featured) === (repoFilter === 'featured')));
+const order = {
+  updated: (a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''),
+  stars: (a, b) => (b.stars ?? -1) - (a.stars ?? -1),
+  name: () => 0,
+  placement: (a, b) => (a.project?.display_order ?? 1000) - (b.project?.display_order ?? 1000),
+}[repoSort];
+filtered.sort((a, b) => order(a, b) || a.name.localeCompare(b.name));
+const size = 8;
+const pages = Math.max(1, Math.ceil(filtered.length / size));
+const currentPage = Math.min(page, pages);
+const first = (currentPage - 1) * size;
+const visible = filtered.slice(first, first + size);
+const pageLinks = Array.from({ length: Math.min(5, pages) }, (_, index) => Math.max(1, Math.min(currentPage - 2, pages - 4)) + index);
+const actionUrl = projectUrl(currentPage);
+const date = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeZone: 'Asia/Dhaka' }).format(new Date(value));
+const dateTime = value => new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' }).format(new Date(value));
+---
+<section class="projects-workspace" aria-labelledby="projects-admin-title">
+  <header class="admin-section-head">
+    <div><h2 id="projects-admin-title">Projects (GitHub)</h2><p class="admin-muted">Manage your repositories and choose which projects appear on the portfolio.</p></div>
+    <div class="actions repo-heading-actions">
+      {syncedAt && <span class="admin-muted repo-connection"><span aria-hidden="true"></span>GitHub account <strong>{githubOwner}</strong></span>}
+      <a class="btn btn-primary button admin-sage-action" href={actionUrl + '&sync=yes'}><AdminIcon name="sync" />Sync now</a>
+    </div>
+  </header>
+  {githubUnavailable && <p class="form-status">GitHub is temporarily unavailable. Saved portfolio projects are still available.</p>}
+  <div class="repo-stats">
+    <div><AdminIcon name="projects" /><div><strong>{syncedAt ? repositories.length : '—'}</strong><p class="admin-muted">GitHub repositories</p></div></div>
+    <div><AdminIcon name="star" /><div><strong>{projects.filter(project => project.featured).length}</strong><p class="admin-muted">Featured on portfolio</p></div></div>
+    <div><AdminIcon name="sync" /><div><strong class="repo-stat-label">Last synced</strong><p class="admin-muted">{syncedAt ? <time datetime={syncedAt}>{dateTime(syncedAt)}</time> : 'Awaiting GitHub'}</p></div></div>
+    <a class="btn btn-primary button admin-sage-action" href={profile} target="_blank" rel="noopener noreferrer" aria-describedby="new-tab-description">View on GitHub ↗</a>
+  </div>
+  <form method="get" class="admin-tools repo-tools">
+    <input type="hidden" name="section" value="projects" />
+    <label class="admin-search"><AdminIcon name="search" /><input name="q" type="search" maxlength="100" aria-label="Search repositories" placeholder="Search repositories…" value={search} /></label>
+    <select name="status" aria-label="Featured status"><option value="">All repositories</option><option value="featured" selected={repoFilter === 'featured'}>Featured</option><option value="unfeatured" selected={repoFilter === 'unfeatured'}>Unfeatured</option></select>
+    <select name="language" aria-label="Language"><option value="">All languages</option>{languages.map(language => <option value={language} selected={language === repoLanguage}>{language}</option>)}</select>
+    <select name="sort" aria-label="Sort repositories"><option value="updated">Recently updated</option><option value="name" selected={repoSort === 'name'}>Name</option><option value="stars" selected={repoSort === 'stars'}>Most stars</option><option value="placement" selected={repoSort === 'placement'}>Display order</option></select>
+    <button class="btn btn-outline button secondary">Apply</button>
+  </form>
+  {visible.length ? <>
+    <div class="repo-table-wrap" role="region" aria-label="GitHub repository table" tabindex="0">
+      <table class="table repo-table">
+        <thead><tr><th scope="col">Repository</th><th scope="col">Description</th><th scope="col">Language</th><th scope="col">Stars</th><th scope="col">Updated</th><th scope="col">Featured</th><th scope="col">Settings</th></tr></thead>
+        <tbody>
+          {visible.map(row => <tr>
+            <th scope="row"><a href={row.href} target="_blank" rel="noopener noreferrer" aria-describedby="new-tab-description"><AdminIcon name="projects" />{row.name} ↗</a></th>
+            <td class="repo-description">{row.description || '—'}</td>
+            <td>{row.language ? <span class="badge admin-count">{row.language}</span> : '—'}</td>
+            <td>{row.stars == null ? '—' : <><AdminIcon name="star" /> {row.stars}</>}</td>
+            <td>{row.updatedAt ? <time datetime={row.updatedAt}>{date(row.updatedAt)}</time> : '—'}</td>
+            <td><form method="post" action={actionUrl} class="repo-toggle-form">
+              {row.project ? <>
+                <input type="hidden" name="slug" value={row.project.slug} />
+                <input type="hidden" name="featured" value={row.project.featured ? 'no' : 'yes'} />
+              </> : <input type="hidden" name="repository" value={row.name} />}
+              <button class="repo-switch" role="switch" aria-checked={Boolean(row.project?.featured)} aria-label={'Feature ' + row.name} name="action" value={row.project ? 'toggle-project' : 'feature-repository'}></button>
+            </form></td>
+            <td>{row.project && <details class="repo-settings">
+              <summary aria-label={'Placement settings for ' + row.name}>Placement</summary>
+              <form method="post" action={actionUrl}>
+                <input type="hidden" name="slug" value={row.project.slug} />
+                <label><span><input name="featured" type="checkbox" value="yes" checked={row.project.featured} /> Feature on portfolio</span></label>
+                <label>Display order<input type="number" name="display_order" min="0" max="999" required value={row.project.display_order} /></label>
+                <button class="button secondary" name="action" value="save-project">Save placement</button>
+              </form>
+            </details>}</td>
+          </tr>)}
+        </tbody>
+      </table>
+    </div>
+    <div class="repo-footer">
+      <p class="admin-muted">Showing {first + 1}–{first + visible.length} of {filtered.length} projects</p>
+      {pages > 1 && <nav class="admin-pagination" aria-label="Repository pages">
+        {currentPage > 1 && <a class="button secondary" href={projectUrl(currentPage - 1)} aria-label="Previous page">‹</a>}
+        {pageLinks.map(number => <a class:list={['button', number === currentPage ? 'admin-sage-action' : 'secondary']} href={projectUrl(number)} aria-current={number === currentPage ? 'page' : undefined}>{number}</a>)}
+        {currentPage < pages && <a class="button secondary" href={projectUrl(currentPage + 1)} aria-label="Next page">›</a>}
+      </nav>}
+    </div>
+  </> : <p class="admin-empty">No repositories match this view.</p>}
+</section>

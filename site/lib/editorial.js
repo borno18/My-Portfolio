@@ -7,7 +7,7 @@ const covers = {
 export function editorialDetails(post) {
   const words = post.body.trim().split(/\s+/).length;
   return {
-    cover: covers[post.slug],
+    cover: Object.hasOwn(covers, post.slug) ? covers[post.slug] : undefined,
     photo: post.cover_path ? { src: '/blog-cover/' + post.cover_path, alt: post.cover_alt } : null,
     category: post.isProjectNote ? 'Project notes' : 'Engineering',
     minutes: Math.max(1, Math.ceil(words / 220)) + ' min read',

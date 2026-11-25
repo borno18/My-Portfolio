@@ -5,9 +5,10 @@ import Link from '../components/Link.astro';
 import ProjectList from '../components/ProjectList.astro';
 import { getProjectSettings } from '../lib/content.js';
 import { projectDisplay } from '../lib/work.js';
+import { cachePublic, publicCacheTags } from '../lib/public-cache.js';
 
-Astro.response.headers.set('Cache-Control', 'no-store');
 const projects = projectDisplay(await getProjectSettings()).filter(project => project.featured);
+cachePublic(Astro.response.headers, publicCacheTags.projects);
 ---
 <Base title="Projects" description="Selected software projects and GitHub repositories by Joydip Majumdar.">
   <section class="wrap page-intro">

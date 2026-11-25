@@ -1,13 +1,14 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import vercel from '@astrojs/vercel';
+import tailwindcss from '@tailwindcss/vite';
 import { existsSync } from 'node:fs';
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
 export default defineConfig({
   srcDir: './site',
-  site: process.env.SITE_URL || 'https://joydipmajumdar.vercel.app',
+  site: process.env.SITE_URL || 'https://joydip-port.vercel.app',
   adapter: vercel(),
   integrations: [sitemap({
     filter: page => !['/admin', '/notes', '/404'].includes(new URL(page).pathname.replace(/\/$/, '')),
@@ -18,7 +19,7 @@ export default defineConfig({
   vite: {
     build: { assetsInlineLimit: 0 },
     css: { postcss: { plugins: [] } },
-    plugins: [{
+    plugins: [tailwindcss(), {
       name: 'portfolio-sanitizer-bundle',
       apply: 'build',
       config: () => ({
